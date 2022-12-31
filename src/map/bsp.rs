@@ -44,7 +44,7 @@ pub enum LumpType {
     HeaderLumps = 15,
 }
 
-enum ContentType {
+pub enum ContentType {
     ContentsEmpty = -1,
     ContentsSolid = -2,
     ContentsWater = -3,
@@ -62,4 +62,67 @@ enum ContentType {
     ContentsTranslucent = -15,
 }
 
+pub enum PlaneType {
+    PlaneX = 0,
+    PlaneY = 1,
+    PlaneZ = 2,
+    PlaneAnyX = 3,
+    PlaneAnyY = 4,
+    PlaneAnyZ = 5,
+}
 
+pub enum RenderMode {
+    RenderModeNormal = 0,
+    RenderModeColor = 1,
+    RenderModeTexture = 2,
+    RenderModeGlow = 3,
+    RenderModeSolid = 4,
+    RenderModeAdditive = 5,
+}
+
+pub struct Lump {
+    pub offset: i32,
+    pub length: i32,
+}
+
+pub struct Header {
+    pub version: i32,
+    pub lump: [Lump; LumpType::HeaderLumps as usize],
+}
+
+pub struct Node {
+    pub plane_index: u32,
+    pub child_index: [i16; 2], 
+    pub lower: [i16; 3],
+    pub upper: [i16; 3],
+    pub first_face: u16,
+    pub last_face: u16,
+}
+
+pub struct Leaf {
+    pub content: i32,
+    pub vis_offset: i32,
+    pub lower: [i16; 3],
+    pub upper: [i16; 3],
+    pub first_mark_surface: u16,
+    pub mark_surface_count: u16,
+    pub ambient_levels: [u8; 4],
+}
+
+pub type MarkSurface = u16;
+
+pub struct Plane {
+    pub normal: [f32; 3],
+    pub dist: f32,
+    pub r#type: i32,
+}
+
+pub type Vertex = [f32; 3];
+
+pub struct Edge {
+    pub vertex_index: [u16; 2],
+}
+
+pub struct Face {
+    
+}
