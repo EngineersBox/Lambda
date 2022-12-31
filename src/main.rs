@@ -1,3 +1,5 @@
+mod map;
+
 #[macro_use]
 extern crate glium;
 
