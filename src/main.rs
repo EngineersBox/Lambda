@@ -6,6 +6,7 @@ mod scene;
 extern crate glium;
 extern crate glm;
 extern crate bit_set;
+extern crate byteorder;
 
 use glium::{glutin, Surface};
 
