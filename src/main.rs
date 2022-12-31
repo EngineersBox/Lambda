@@ -1,7 +1,11 @@
 mod map;
+mod resource;
+mod scene;
 
 #[macro_use]
 extern crate glium;
+extern crate glm;
+extern crate bit_set;
 
 use glium::{glutin, Surface};
 
