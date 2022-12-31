@@ -65,6 +65,8 @@ impl Resource for WadDirEntry {
         let bit_reader: BitReader = BitReader::new(&[buf.read_u8().unwrap()]);
         let temp_u8: u8 = bit_reader.read_u8(1).unwrap();
         let compressed: bool = (bit_reader.read_u8(1).unwrap() & BOOL_BIT_MASK) != 0;
+        // TODO: Fix this reading as it will resume just before the single bit. Needs to start
+        // after that bit
         reader.set_position(reader.position() - 1);
         buf = reader.get_ref();
         let n_dummy: i16 = buf.read_i16::<Self::T>().unwrap();
