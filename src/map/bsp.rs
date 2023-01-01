@@ -1,6 +1,7 @@
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::fs::File;
 use bit_set::BitSet;
+use lazy_static::lazy_static;
 
 use crate::map::bsp30::{self, TextureInfo};
 use crate::map::wad::{Wad, MipmapTexture};
@@ -62,7 +63,9 @@ pub struct BSP {
     pub models: Vec<Model>,
 }
 
-const WAD_DIR: String = String::from("../data/wads");
+lazy_static!{
+    static ref WAD_DIR: String = String::from("../data/wads");
+}
 
 impl BSP {
 
