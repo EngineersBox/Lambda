@@ -129,7 +129,7 @@ impl Wad {
         return wad;
     }
 
-    pub fn load_texture(&self, name: String) -> Option<MipmapTexture> {
+    pub fn load_texture(&self, name: &String) -> Option<MipmapTexture> {
         let raw_texture: Vec<u8> = self.get_texture(name);
         if raw_texture.is_empty() {
             return None;
@@ -137,7 +137,7 @@ impl Wad {
         return Some(Self::create_mip_texture(&raw_texture));
     }
 
-    pub fn load_decal_texture(&self, name: String) -> Option<MipmapTexture> {
+    pub fn load_decal_texture(&self, name: &String) -> Option<MipmapTexture> {
         let raw_texture: Vec<u8> = self.get_texture(name);
         if raw_texture.is_empty() {
             return None;
@@ -167,8 +167,8 @@ impl Wad {
         }
     }
 
-    fn get_texture(&self, name: String) -> Vec<u8> {
-        let option_entry: Option<&WadDirEntry> = self.dir_entries.get(&name);
+    fn get_texture(&self, name: &String) -> Vec<u8> {
+        let option_entry: Option<&WadDirEntry> = self.dir_entries.get(name);
         if let Some(entry) = option_entry {
             if entry.compressed {
                 panic!("Cannot load compressed WAD texture {}", name);
