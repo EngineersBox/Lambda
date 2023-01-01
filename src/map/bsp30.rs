@@ -1,3 +1,7 @@
+use std::io::{Result, Error, ErrorKind, BufReader};
+use byteorder::{BigEndian, ReadBytesExt};
+use crate::resource::resource::{Resource, read_char_array};
+
 // ==== BSP FORMAT LAYOUT ====
 
 pub const MAX_MAP_HULLS: usize = 4;
@@ -5,7 +9,7 @@ pub const MAX_MAP_HULLS: usize = 4;
 pub const MAX_MAP_MODELS: usize = 400;
 pub const MAX_MAP_BRUSHES: usize = 4096;
 pub const MAX_MAP_ENTITIES: usize = 1024;
-pub const MAX_MAP_ENTSTRING: usize = (128 * 1024);
+pub const MAX_MAP_ENTSTRING: usize = 128 * 1024;
 
 pub const MAX_MAP_PLANES: usize = 32767;
 pub const MAX_MAP_NODES: usize = 32767; // Negative shorts are leaves
@@ -147,10 +151,39 @@ pub const MAX_TEXTURE_NAME: usize = 16;
 pub const MIP_LEVELS: usize = 4;
 
 pub struct MipTex {
-    pub name: &'static str,
+    pub name: [u8; MAX_TEXTURE_NAME],
     pub width: u32,
     pub height: u32,
     pub offsets: [u32; MIP_LEVELS],
+}
+
+impl Resource for MipTex {
+   
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let mut name: [u8; MAX_TEXTURE_NAME] = [0; MAX_TEXTURE_NAME];
+        if read_char_array(reader, &mut name) == 0 {
+            return Err(Error::new(ErrorKind::InvalidData, "Expected texture name, got none"));
+        }
+        let width = reader.read_u32::<Self::T>().unwrap();
+        let height = reader.read_u32::<Self::T>().unwrap();
+        let mut offsets: [u32; MIP_LEVELS] = [0; MIP_LEVELS];
+        for i in 0..MIP_LEVELS {
+            match reader.read_u32::<Self::T>() {
+                Ok(0) => break,
+                Ok(value) => offsets[i] = value,
+                Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Unable to read texture mip levels: {}", error))),
+            }
+        }
+        return Ok(MipTex {
+            name,
+            width,
+            height,
+            offsets,
+        });
+    }
+
 }
 
 pub struct TextureInfo {

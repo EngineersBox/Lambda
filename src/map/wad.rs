@@ -1,8 +1,8 @@
 use std::io::{self, Read, Seek, SeekFrom, BufReader};
 use std::fs::{File, OpenOptions};
-use std::any::TypeId;
+use std::collections::HashMap;
 use byteorder::{ReadBytesExt, BigEndian};
-use bitter::{BitReader, BigEndianReader, LittleEndianReader};
+use bitter::{BitReader, BigEndianReader};
 
 use crate::map::bsp30;
 use crate::resource::resource::Resource;
@@ -105,7 +105,7 @@ impl MipmapTexture {
 
 pub struct Wad {
     pub (crate) wad_file: BufReader<File>,
-    pub (crate) dir_entries: Vec<WadDirEntry>,
+    pub (crate) dir_entries: HashMap<String, WadDirEntry>,
 }
 
 impl Wad {
@@ -123,13 +123,13 @@ impl Wad {
         };
         let mut wad: Wad = Wad {
             wad_file: BufReader::new(wad_file),
-            dir_entries: Vec::new(),
+            dir_entries: HashMap::new(),
         };
         wad.load_directory();
         return wad;
     }
 
-    pub fn load_texture(&self, name: &str) -> Option<MipmapTexture> {
+    pub fn load_texture(&self, name: String) -> Option<MipmapTexture> {
         let raw_texture: Vec<u8> = self.get_texture(name);
         if raw_texture.is_empty() {
             return None;
@@ -137,16 +137,12 @@ impl Wad {
         return Some(Self::create_mip_texture(&raw_texture));
     }
 
-    pub fn load_decal_texture(&self, name: &str) -> Option<MipmapTexture> {
+    pub fn load_decal_texture(&self, name: String) -> Option<MipmapTexture> {
         let raw_texture: Vec<u8> = self.get_texture(name);
         if raw_texture.is_empty() {
             return None;
         }
         return Some(self.create_decal_texture(&raw_texture));
-    }
-
-    pub fn create_mip_texture(raw_texture: &Vec<u8>) -> MipmapTexture {
-        todo!()
     }
 
     fn load_directory(&mut self) {
@@ -158,18 +154,41 @@ impl Wad {
             [b'W', b'A', b'D', b'2' | b'3'] => {},
             other => panic!("Invalid WAD magic string: {:?}", other)
         };
-        self.dir_entries.resize_with(header.n_dir as usize, Default::default);
+        // self.dir_entries.resize_with(header.n_dir as usize, Default::default);
         self.wad_file.seek(SeekFrom::Start(header.dir_offset as u64)).unwrap();
-        for i in 0..header.n_dir as usize {
-            self.dir_entries[i] = match WadDirEntry::from_reader(&mut self.wad_file) {
-                Ok(entry) => entry,
+        for _ in 0..header.n_dir as usize {
+            match WadDirEntry::from_reader(&mut self.wad_file) {
+                Ok(entry) => self.dir_entries.insert(
+                    String::from_utf8_lossy(&entry.name).to_string(),
+                    entry,
+                ),
                 Err(error) => panic!("Unable to parse WadDirEntry {}: {}", i, error),
             };
         }
     }
 
-    fn get_texture(&self, name: &str) -> Vec<u8> {
-        todo!()
+    fn get_texture(&self, name: String) -> Vec<u8> {
+        let option_entry: Option<&WadDirEntry> = self.dir_entries.get(&name);
+        if let Some(entry) = option_entry {
+            if entry.compressed {
+                panic!("Cannot load compressed WAD texture {}", name);
+            }
+            self.wad_file.seek(SeekFrom::Start(entry.n_file_pos as u64)).unwrap();
+            let mut texture_bytes: Vec<u8> = Vec::with_capacity(entry.n_size as usize);
+            self.wad_file.read_exact(&mut texture_bytes);
+            return texture_bytes;
+        } else {
+            return Vec::with_capacity(0);
+        }
+    }
+    
+    pub fn create_mip_texture(raw_texture: &Vec<u8>) -> MipmapTexture {
+        let reader: BufReader<&[u8]> = BufReader::new(raw_texture.as_slice());
+        let raw_mip_tex: bsp30::MipTex = bsp30::MipTex::from_reader(&mut reader).unwrap();
+        let mut width: u32 = raw_mip_tex.width;
+        let mut height: u32 = raw_mip_tex.height;
+        let palette_offset = raw_mip_tex.offsets[3] + (width / 3) * (height / 8) + 2;
+        let mip_tex: MipmapTexture = MipmapTexture::new();
     }
 
     fn create_decal_texture(&self, raw_texture: &Vec<u8>) -> MipmapTexture {

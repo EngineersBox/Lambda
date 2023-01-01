@@ -1,7 +1,4 @@
 
-#![feature(cursor_remaining)]
-use std::io::Cursor;
-
 mod map;
 mod resource;
 mod scene;
