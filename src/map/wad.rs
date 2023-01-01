@@ -156,7 +156,7 @@ impl Wad {
         };
         // self.dir_entries.resize_with(header.n_dir as usize, Default::default);
         self.wad_file.seek(SeekFrom::Start(header.dir_offset as u64)).unwrap();
-        for _ in 0..header.n_dir as usize {
+        for i in 0..header.n_dir as usize {
             match WadDirEntry::from_reader(&mut self.wad_file) {
                 Ok(entry) => self.dir_entries.insert(
                     String::from_utf8_lossy(&entry.name).to_string(),
@@ -271,7 +271,7 @@ fn apply_alpha_sections(p_tex: &mut Image) {
                         count += 1;
                     }
                 }
-            };
+            }
 
             macro_rules! absolute_pixel {
                 ($pixel_index_expr:expr) => {
@@ -285,7 +285,8 @@ fn apply_alpha_sections(p_tex: &mut Image) {
                         count += 1;
                     }
                 }
-            };
+            }
+
             // Top left
             if x > 0 && y > 0 {
                 corner_pixel!(((y - 1) * p_tex.width + (x - 1)) * 4);

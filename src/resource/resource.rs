@@ -6,7 +6,7 @@ pub trait Resource {
     fn from_reader(reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> where Self: Sized;
 }
 
-pub fn read_char_array(reader: &mut BufReader<impl ReadBytesExt>, char_array: &[u8]) -> usize {
+pub fn read_char_array(reader: &mut BufReader<impl ReadBytesExt>, char_array: &mut [u8]) -> usize {
     let mut read_count: usize = 0;
     for i in 0..char_array.len() {
         match reader.read_u8() {

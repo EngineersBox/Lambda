@@ -18,7 +18,7 @@ extern crate slog_json;
 extern crate lazy_static;
 
 use glium::{glutin, Surface};
-use lazy_static::lazy_static;
+pub(crate) use lazy_static::lazy_static;
 use slog::Logger;
 
 use crate::logging::logging::initialize_logging;
