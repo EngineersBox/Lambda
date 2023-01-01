@@ -1,4 +1,8 @@
+use std::io::BufReader;
+use std::fs::File;
 use bit_set::BitSet;
+use slog::
+
 use crate::map::bsp30;
 use crate::map::wad::{Wad, MipmapTexture};
 use crate::resource::image::Image;
@@ -56,4 +60,94 @@ pub struct BSP {
     pub m_lightmaps: Vec<Image>,
     pub hull_0_clip_nodes: Vec<bsp30::ClipNode>,
     pub models: Vec<Model>,
+}
+
+const WAD_DIR: String = String::from("../data/wads");
+
+impl BSP {
+
+    pub fn new(path: String) -> Self {
+        todo!()
+    }
+
+    pub fn find_entity<'a>(&self, name: String) -> &'a Entity {
+        todo!()
+    }
+    
+    pub fn find_entities<'a>(&self, name: String) -> Vec<&'a Entity> {
+        todo!()
+    }
+
+    pub fn load_skybox(&self) -> Option<[Image; 6]> {
+        todo!()
+    }
+
+    pub (crate) fn load_wad_files(&self, wad_str: String) {
+        let wad_string: String = wad_str.replace("\\", "/");
+        let mut wad_count: usize = 0;
+        let mut pos: usize = 0;
+        loop {
+            pos += 1;
+            let next: Option<usize> = wad_string[pos..].find(';');
+            if next.is_none() {
+                break;
+            }
+            let mut path: String = wad_string[pos..(next.unwrap() - pos)].to_string();
+            if let Some(it) = path.rfind('/') {
+                if let Some(it2) = path[0..it - 1].rfind('/') {
+                    path = path[(it2 + 1)..].to_string();
+                }
+            }
+            self.wad_files.push(Wad::new((WAD_DIR + path.as_str()).as_str()));
+            wad_count += 1;
+            info!(&crate::LOGGER, "Loaded WAD {}", wad_count);
+        }
+        todo!()
+    }
+
+    pub (crate) fn unload_wad_files() {
+        todo!()
+    }
+
+    pub (crate) fn load_textures(reader: BufReader<File>) {
+        todo!()
+    }
+
+    pub (crate) fn load_textures_from_wads(name: String) -> Option<MipmapTexture> {
+        todo!()
+    }
+
+    pub (crate) fn load_decal_texture(name: String) -> Option<MipmapTexture> {
+        todo!()
+    }
+
+    pub (crate) fn load_decals() {
+        todo!()
+    }
+
+    pub (crate) fn load_light_maps(p_light_map_data: Vec<u8>) {
+        todo!()
+    }
+
+    pub (crate) fn load_models(reader: BufReader<File>) {
+        todo!()
+    }
+
+    pub (crate) fn parse_entities(entities_string: String) {
+        todo!()
+    }
+
+    pub (crate) fn count_vis_leaves(i_node: usize) -> usize {
+        todo!()
+    }
+
+    pub (crate) fn decompress_vis(leaf: usize, compresed_vis: Vec<u8>) -> BitSet {
+        todo!()
+    }
+    
+    pub (crate) fn find_leaf(pos: glm::Vec3, node: usize) -> Optional<usize> {
+
+        todo!()
+    }
+
 }

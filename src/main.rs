@@ -2,6 +2,7 @@
 mod map;
 mod resource;
 mod scene;
+mod logging;
 
 #[macro_use]
 extern crate glium;
@@ -9,10 +10,22 @@ extern crate glm;
 extern crate bit_set;
 extern crate byteorder;
 extern crate bitter;
-
-
+#[macro_use]
+extern crate slog;
+extern crate slog_term;
+extern crate slog_async;
+extern crate slog_json;
+extern crate lazy_static;
 
 use glium::{glutin, Surface};
+use lazy_static::lazy_static;
+use slog::Logger;
+
+use crate::logging::logging::initialize_logging;
+
+lazy_static! {
+    static ref LOGGER: Logger = initialize_logging(String::from("Lambda"));
+}
 
 fn render(display: &glium::Display) {
     let mut target = display.draw();
@@ -21,6 +34,7 @@ fn render(display: &glium::Display) {
 }
 
 fn main() {
+    info!(&crate::LOGGER, "Configured logging");
     let mut event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new();
     let context_builder = glutin::ContextBuilder::new();
