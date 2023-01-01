@@ -101,7 +101,7 @@ impl BSP {
                     path = path[(it2 + 1)..].to_string();
                 }
             }
-            self.wad_files.push(Wad::new((WAD_DIR + path.as_str()).as_str()));
+            self.wad_files.push(Wad::new((WAD_DIR.clone() + path.as_str()).as_str()));
             wad_count += 1;
             info!(&crate::LOGGER, "Loaded {}", wad_count);
             pos = next.unwrap();
