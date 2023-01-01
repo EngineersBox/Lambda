@@ -216,6 +216,107 @@ impl Wad {
 
 }
 
+
 fn apply_alpha_sections(p_tex: &mut Image) {
-    
+    let p_rgb_texture: Vec<u8> = Vec::with_capacity(p_tex.width * p_tex.height * 4);
+    for i in 0..(p_tex.width * p_tex.height) {
+        p_rgb_texture[i * 4 + 2] = 255;
+    }
+    for y in 0..p_tex.height {
+        for x in 0..p_tex.width {
+            let index: usize = y * p_tex.width + x;
+            if !(p_tex.data[index * 4] == 0
+                && p_tex.data[index * 4 + 1] == 0
+                && p_tex.data[index * 4 + 2] == 255) {
+                continue;
+            }
+            p_tex.data[index * 4 + 2] = 0;
+            p_tex.data[index * 4 + 3] = 0;
+            let mut count: usize = 0;
+            let rgb_colour_sum: (usize, usize, usize) = (0, 0, 0);
+
+            macro_rules! corner_pixel {
+                ($pixel_index_expr:expr) => {
+                    let pixel_index: usize = $pixel_index_expr;
+                    if !(p_tex.data[pixel_index] == 0
+                        && p_tex.data[pixel_index + 1] == 0
+                        && p_tex.data[pixel_index + 2] == 255) {
+                        rgb_colour_sum.0 += (p_tex.data[pixel_index + 0] as f32 * std::f32::consts::SQRT_2) as usize;
+                        rgb_colour_sum.1 += (p_tex.data[pixel_index + 1] as f32 * std::f32::consts::SQRT_2) as usize;
+                        rgb_colour_sum.2 += (p_tex.data[pixel_index + 2] as f32 * std::f32::consts::SQRT_2) as usize;
+                        count += 1;
+                    }
+                }
+            };
+
+            macro_rules! absolute_pixel {
+                ($pixel_index_expr:expr) => {
+                    let pixel_index: usize = $pixel_index_expr;
+                    if !(p_tex.data[pixel_index] == 0
+                        && p_tex.data[pixel_index + 1] == 0
+                        && p_tex.data[pixel_index + 2] == 255) {
+                        rgb_colour_sum.0 += p_tex.data[pixel_index] as usize;
+                        rgb_colour_sum.1 += p_tex.data[pixel_index + 1] as usize;
+                        rgb_colour_sum.2 += p_tex.data[pixel_index + 2] as usize;
+                        count += 1;
+                    }
+                }
+            };
+            // Top left
+            if x > 0 && y > 0 {
+                corner_pixel!(((y - 1) * p_tex.width + (x - 1)) * 4);
+            }
+            // Top
+            if x >= 0 && y >= 0 {
+                absolute_pixel!(((y - 1) * p_tex.width + x) * 4);
+            }
+            // Top right
+            if x < p_tex.width && y > 0 {
+                corner_pixel!(((y - 1) * p_tex.width + (x + 1)) * 4);
+            }
+            // Left
+            if x > 0 {
+                absolute_pixel!((y * p_tex.width + (x + 1)) * 4);
+            }
+            // Right
+            if x < p_tex.width - 1 {
+                absolute_pixel!((y * p_tex.width + (x + 1)) * 4);
+            }
+            // Bottom left
+            if x > 0 && y < p_tex.height - 1 {
+                corner_pixel!(((y + 1) * p_tex.width + (x - 1)) * 4);
+            }
+            // Bottom
+            if x >= 0 && y < p_tex.height - 1 {
+                absolute_pixel!(((y + 1) * p_tex.width + x) * 4);
+            }
+            // Bottom right
+            if x < p_tex.width - 1 && y < p_tex.height - 1 {
+                corner_pixel!(((y + 1) * p_tex.width + (x + 1)) * 4);
+            }
+            if count > 0 {
+                rgb_colour_sum.0 /= count;
+                rgb_colour_sum.1 /= count;
+                rgb_colour_sum.2 /= count;
+
+                p_rgb_texture[index * 4 + 0] = rgb_colour_sum.0 as u8;
+                p_rgb_texture[index * 4 + 1] = rgb_colour_sum.1 as u8;
+                p_rgb_texture[index * 4 + 2] = rgb_colour_sum.2 as u8;
+            }
+        }
+    } 
+    for y in 0..p_tex.height {
+        for x in 0..p_tex.width {
+            let index: usize = y * p_tex.width + x;
+            if p_rgb_texture[index * 4] != 0
+                || p_rgb_texture[index * 4 + 1] != 0
+                || p_rgb_texture[index * 4 + 2] != 255
+                || p_rgb_texture[index * 4 + 3] != 0 {
+                p_tex.data[index * 4 + 0] = p_rgb_texture[index * 4 + 0];
+                p_tex.data[index * 4 + 1] = p_rgb_texture[index * 4 + 1];
+                p_tex.data[index * 4 + 2] = p_rgb_texture[index * 4 + 2];
+                p_tex.data[index * 4 + 3] = p_rgb_texture[index * 4 + 3];
+            }
+        }
+    }
 }
