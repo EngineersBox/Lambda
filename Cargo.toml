@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bit-set = "0.5.3"
 bitreader = "0.3.6"
+bitter = "0.6.1"
 byteorder = "1.4.3"
 glium = "*"
 glm = "0.2.3"

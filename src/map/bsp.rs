@@ -1,5 +1,8 @@
 use bit_set::BitSet;
 use crate::map::bsp30;
+use crate::map::wad::{Wad, MipmapTexture};
+use crate::resource::image::Image;
+use crate::scene::entity::Entity;
 
 pub struct FaceTexCoords {
     pub tex_coords: Vec<glm::Vec2>,

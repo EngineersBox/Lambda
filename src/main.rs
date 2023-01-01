@@ -1,3 +1,7 @@
+
+#![feature(cursor_remaining)]
+use std::io::Cursor;
+
 mod map;
 mod resource;
 mod scene;
@@ -7,6 +11,9 @@ extern crate glium;
 extern crate glm;
 extern crate bit_set;
 extern crate byteorder;
+extern crate bitter;
+
+
 
 use glium::{glutin, Surface};
 
