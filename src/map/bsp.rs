@@ -124,7 +124,7 @@ impl BSP {
             let mip_tex: &bsp30::MipTex = &self.mip_textures[i];
             if mip_tex.offsets[0] == 0 {
                 // External texture
-                if let Some(tex) = self.load_texture_from_wads(String::from_utf8_lossy(&mip_tex.name).to_string()) {
+                if let Some(tex) = self.load_texture_from_wads(&String::from_utf8_lossy(&mip_tex.name).to_string()) {
                     self.m_textures[i] = tex;
                 }  else {
                     error!(&crate::LOGGER, "Failed to load texture {} from WAD files", String::from_utf8_lossy(&mip_tex.name));
@@ -173,7 +173,7 @@ impl BSP {
     }
 
     pub (crate) fn load_texture_from_wads(&self, name: &String) -> Option<MipmapTexture> {
-        for &wad in &self.wad_files {
+        for wad in self.wad_files.iter() {
             if let Some(p_mipmap_tex) = wad.load_texture(name) {
                 return Some(p_mipmap_tex);
             }
@@ -181,8 +181,13 @@ impl BSP {
         return None;
     }
 
-    pub (crate) fn load_decal_texture(&self, name: String) -> Option<MipmapTexture> {
-        todo!()
+    pub (crate) fn load_decal_texture(&self, name: &String) -> Option<MipmapTexture> {
+        for decal_wad in self.decal_wads.iter() {
+            if let Some(p_mipmap_tex) = decal_wad.load_texture(name) {
+                return Some(p_mipmap_tex);
+            }
+        }
+        return None;
     }
 
     pub (crate) fn load_decals(&self) {
