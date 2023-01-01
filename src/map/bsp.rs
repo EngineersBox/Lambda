@@ -172,8 +172,13 @@ impl BSP {
         }
     }
 
-    pub (crate) fn load_textures_from_wads(&self, name: String) -> Option<MipmapTexture> {
-        todo!()
+    pub (crate) fn load_texture_from_wads(&self, name: String) -> Option<MipmapTexture> {
+        for &wad in &self.wad_files {
+            if let Some(p_mipmap_tex) = wad.load_texture(name) {
+                return Some(p_mipmap_tex);
+            }
+        }
+        return None;
     }
 
     pub (crate) fn load_decal_texture(&self, name: String) -> Option<MipmapTexture> {
