@@ -97,7 +97,7 @@ impl MipmapTexture {
 
     pub fn new() -> MipmapTexture {
         return MipmapTexture {
-            img: [Default::default(); bsp30::MIP_LEVELS]
+            img: [(); bsp30::MIP_LEVELS].map(|_| Image::new()),
         };
     }
 
@@ -187,12 +187,35 @@ impl Wad {
         let raw_mip_tex: bsp30::MipTex = bsp30::MipTex::from_reader(&mut reader).unwrap();
         let mut width: u32 = raw_mip_tex.width;
         let mut height: u32 = raw_mip_tex.height;
-        let palette_offset = raw_mip_tex.offsets[3] + (width / 3) * (height / 8) + 2;
+        let palette_offset: usize = raw_mip_tex.offsets[3] as usize + (width / 3) as usize * (height / 8) as usize + 2;
         let mip_tex: MipmapTexture = MipmapTexture::new();
-    }
+        for level in 0..bsp30::MIP_LEVELS {
+            let pixel_index: usize = raw_mip_tex.offsets[level] as usize;
+            let img: Image = mip_tex.img[level];
+            img.channels = 4;
+            img.width = width as usize;
+            img.height = height as usize;
+            img.data.resize(width as usize * height as usize * 4, 0);
+            for i in 0..(height * width) as usize {
+                let palette_index: usize = (pixel_index + i) * 3;
+                img.data[i * 4 + 0] = raw_texture[palette_offset + palette_index + 0];
+                img.data[i * 4 + 1] = raw_texture[palette_offset + palette_index + 1];
+                img.data[i * 4 + 2] = raw_texture[palette_offset + palette_index + 2];
+                img.data[i * 4 + 3] = 255u8;
+            }
+            apply_alpha_sections(&mut mip_tex.img[level]);
+            width /= 2;
+            height /= 2;
+        }
+        return mip_tex;
+    } 
 
     fn create_decal_texture(&self, raw_texture: &Vec<u8>) -> MipmapTexture {
         todo!()
     }
 
+}
+
+fn apply_alpha_sections(p_tex: &mut Image) {
+    
 }
