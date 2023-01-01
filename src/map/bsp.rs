@@ -70,7 +70,7 @@ impl BSP {
         todo!()
     }
 
-    pub fn find_entity<'a>(&self, name: String) -> &'a Entity {
+    pub fn find_entity<'a>(&self, name: String) -> Option<&'a Entity> {
         todo!()
     }
     
@@ -82,7 +82,7 @@ impl BSP {
         todo!()
     }
 
-    pub (crate) fn load_wad_files(&self, wad_str: String) {
+    pub (crate) fn load_wad_files(&self, wad_str: &String) {
         let wad_string: String = wad_str.replace("\\", "/");
         let mut wad_count: usize = 0;
         let mut pos: usize = 0;
@@ -100,17 +100,24 @@ impl BSP {
             }
             self.wad_files.push(Wad::new((WAD_DIR + path.as_str()).as_str()));
             wad_count += 1;
-            info!(&crate::LOGGER, "Loaded WAD {}", wad_count);
+            info!(&crate::LOGGER, "Loaded {}", wad_count);
+            pos = next.unwrap();
         }
-        todo!()
+        info!(&crate::LOGGER, "Loaded {} WADs", wad_count);
     }
 
-    pub (crate) fn unload_wad_files() {
-        todo!()
+    pub (crate) fn unload_wad_files(&self) {
+        self.wad_files.clear();
     }
 
-    pub (crate) fn load_textures(reader: BufReader<File>) {
-        todo!()
+    pub (crate) fn load_textures(&self, reader: BufReader<File>) {
+        info!(&crate::LOGGER, "Loading texture WADs...");
+        if let Some(world_spawn) = self.find_entity(String::from("world_spawn")) {
+            if let Some(wad) = world_spawn.find_property(String::from("wad")) {
+                self.load_wad_files(wad);
+            }
+        }
+        info!(&create::LOGGER, "Loading textures...");
     }
 
     pub (crate) fn load_textures_from_wads(name: String) -> Option<MipmapTexture> {
