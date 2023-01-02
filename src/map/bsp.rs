@@ -250,21 +250,20 @@ impl BSP {
                 let it: Option<&usize> = loaded_tex.get(tex_name.unwrap());
                 let mut it_val: usize = 0;
                 if it.is_none() {
-                    let mip_tex: Option<MipmapTexture> = self.load_decal_texture(&tex_name.unwrap());
-                    if mip_tex.is_none() {
+                    if self.load_decal_texture(&tex_name.unwrap()).is_none() {
                         error!(&crate::LOGGER, "Unable to load mipmap texture for {}", &tex_name.unwrap());
                         break;
                     }
                     it_val = self.m_textures.len();
                     loaded_tex.insert(tex_name.unwrap().clone(), self.m_textures.len());
-                    self.m_textures.push(mip_tex.unwrap());
+                    self.m_textures.push(self.load_decal_texture(&tex_name.unwrap()).unwrap());
                 }
                 let img_0: &Image = &self.m_textures[it_val].img[0];
                 let h2: f32 = img_0.height as f32 / 2.0;
                 let w2: f32 = img_0.width as f32 / 2.0;
                 let s: glm::Vec3 = self.texture_infos[face.texture_info as usize].s;
                 let t: glm::Vec3 = self.texture_infos[face.texture_info as usize].t;
-                let decal: Decal = Decal {
+                self.m_decals.push(Decal {
                     normal,
                     tex_index: it_val as u32,
                     vec: [
@@ -273,7 +272,7 @@ impl BSP {
                         origin + t * h2 + s * w2,
                         origin + t * h2 - s * w2,
                     ],
-                };
+                });
                 break;
             }
         }
