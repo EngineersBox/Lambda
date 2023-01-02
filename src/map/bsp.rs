@@ -75,11 +75,11 @@ impl BSP {
         todo!()
     }
 
-    pub fn find_entity<'a>(&self, name: String) -> Option<&'a Entity> {
+    pub fn find_entity<'a>(&self, name: &String) -> Option<&'a Entity> {
         todo!()
     }
     
-    pub fn find_entities<'a>(&self, name: String) -> Vec<&'a Entity> {
+    pub fn find_entities<'a>(&self, name: &String) -> Vec<&'a Entity> {
         todo!()
     }
 
@@ -117,7 +117,7 @@ impl BSP {
 
     pub (crate) fn load_textures(&mut self, reader: &mut BufReader<File>) {
         info!(&crate::LOGGER, "Loading texture WADs...");
-        if let Some(world_spawn) = self.find_entity(String::from("world_spawn")) {
+        if let Some(world_spawn) = self.find_entity(&"world_spawn".to_string()) {
             if let Some(wad) = world_spawn.find_property(String::from("wad")) {
                 self.load_wad_files(wad);
             }
@@ -198,7 +198,7 @@ impl BSP {
     pub (crate) fn load_decals(&mut self) {
         self.decal_wads.push(Wad::new((WAD_DIR.clone() + "valve/decals.wad").as_str()));
         self.decal_wads.push(Wad::new((WAD_DIR.clone() + "cstrike/decals.wad").as_str()));
-        let info_decals: Vec<&Entity> = self.find_entities("infodecal".to_string());
+        let info_decals: Vec<&Entity> = self.find_entities(&"infodecal".to_string());
         if info_decals.is_empty() {
             info!(&crate::LOGGER, "No decals to load, skipping");
             return;
@@ -279,15 +279,91 @@ impl BSP {
         info!(&crate::LOGGER, "Loaded {} decals, {} decal textures", self.m_decals.len(), loaded_tex.len());
     }
 
-    pub (crate) fn load_light_maps(&self, p_light_map_data: Vec<u8>) {
-        todo!()
+    pub (crate) fn load_light_maps(&mut self, p_light_map_data: Vec<u8>) {
+        let mut loaded_bytes: usize = 0;
+        let mut loaded_lightmaps: usize = 0;
+        for i in 0..self.faces.len() {
+            if self.faces[i].styles[0] != 0 || (self.faces[i].lightmap_offset as isize) < -1 {
+                self.m_lightmaps.push(Image::new());
+                continue;
+            }
+            self.face_tex_coords[i].lightmap_coords.resize(self.faces[i].edge_count as usize, glm::vec2(0.0, 0.0));
+            // Start QRAD
+            let mut f_min_u: f32 = 999999.0;
+            let mut f_min_v: f32 = 999999.0;
+            let mut f_max_u: f32 = -99999.0;
+            let mut f_max_v: f32 = -99999.0;
+            let tex_info: &TextureInfo = &self.texture_infos[self.faces[i].texture_info as usize];
+            for j in 0..self.faces[i].edge_count as usize {
+                let edge_index: i32 = self.surface_edges[self.faces[i].first_edge_index as usize + j];
+                let vertex: glm::Vec3 = if edge_index >= 0 {
+                    self.vertices[self.edges[edge_index as usize].vertex_index[0] as usize]
+                } else {
+                    self.vertices[self.edges[(-edge_index) as usize].vertex_index[1] as usize]
+                };
+                let f_u: f32 = glm::dot(tex_info.s, vertex) + tex_info.s_shift;
+                if f_u < f_min_u {
+                    f_min_u = f_u;
+                }
+                if f_u > f_max_u {
+                    f_max_u = f_u;
+                }
+                let f_v: f32 = glm::dot(tex_info.t, vertex) + tex_info.t_shift;
+                if f_v < f_min_v {
+                    f_min_v = f_v;
+                }
+                if f_v > f_max_v {
+                    f_max_v = f_v;
+                }
+            }
+            let f_tex_min_u: f32 = (f_min_u / 16.0).floor();
+            let f_tex_min_v: f32 = (f_min_v / 16.0).floor();
+            let f_tex_max_u: f32 = (f_max_u / 16.0).ceil();
+            let f_tex_max_v: f32 = (f_max_v / 16.0).ceil();
+            let n_width: i32 = (f_tex_max_u - f_tex_min_u) as i32 + 1;
+            let n_height: i32 = (f_tex_max_v - f_tex_min_v) as i32 + 1;
+            // End QRAD
+            let f_mid_poly_u: f32 = (f_min_u + f_max_u) / 2.0;
+            let f_mid_poly_v: f32 = (f_min_v + f_max_v) / 2.0;
+            let f_mid_tex_u: f32 = n_width as f32 / 2.0;
+            let f_mid_tex_v: f32 = n_height as f32 / 2.0;
+            for j in 0..self.faces[i].edge_count as usize {
+                let edge_index: i32 = self.surface_edges[self.faces[i].first_edge_index as usize + j];
+                let vertex: glm::Vec3 = if edge_index >= 0 {
+                    self.vertices[self.edges[edge_index as usize].vertex_index[0] as usize]
+                } else {
+                    self.vertices[self.edges[(-edge_index) as usize].vertex_index[1] as usize]
+                };
+                let f_u: f32 = glm::dot(tex_info.s, vertex) + tex_info.s_shift;
+                let f_v: f32 = glm::dot(tex_info.t, vertex) + tex_info.t_shift;
+                let f_lightmap_u: f32 = f_mid_tex_u + (f_u - f_mid_poly_u) / 16.0;
+                let f_lightmap_v: f32 = f_mid_tex_v + (f_v + f_mid_poly_v) / 16.0;
+                self.face_tex_coords[i].lightmap_coords[j].x = f_lightmap_u / n_width as f32;
+                self.face_tex_coords[i].lightmap_coords[j].y = f_lightmap_v / n_height as f32;
+            }
+            let mut image: Image = Image {
+                channels: 3,
+                width: n_width as usize,
+                height: n_height as usize,
+                data: Vec::from_iter(p_light_map_data[self.faces[i].lightmap_offset as usize..(n_width + n_height * 3) as usize].iter().cloned()),
+            };
+            self.m_lightmaps.push(image);
+            loaded_lightmaps += 1;
+            loaded_bytes += (n_width + n_height * 3) as usize;
+        }
+        info!(
+            &crate::LOGGER,
+            "Loaded {} lightmaps, lightmap data diff: {} bytes",
+            loaded_lightmaps,
+            loaded_bytes - self.header.lump[bsp30::LumpType::LumpLighting as usize].length as usize
+        );
     }
 
     pub (crate) fn load_models(&self, reader: BufReader<File>) {
         todo!()
     }
 
-    pub (crate) fn parse_entities(&self, entities_string: String) {
+    pub (crate) fn parse_entities(&self, entities_string: &String) {
         todo!()
     }
 
