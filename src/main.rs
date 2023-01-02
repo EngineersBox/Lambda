@@ -3,6 +3,7 @@ mod map;
 mod resource;
 mod scene;
 mod logging;
+mod util;
 
 #[macro_use]
 extern crate glium;

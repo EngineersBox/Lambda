@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::fs::File;
 use bit_set::BitSet;
@@ -7,6 +8,7 @@ use crate::map::bsp30::{self, TextureInfo};
 use crate::map::wad::{Wad, MipmapTexture};
 use crate::resource::image::Image;
 use crate::scene::entity::Entity;
+use crate::util::mathutil::point_in_plane;
 
 #[derive(Default, Clone)]
 pub struct FaceTexCoords {
@@ -193,8 +195,89 @@ impl BSP {
         return None;
     }
 
-    pub (crate) fn load_decals(&self) {
-        todo!()
+    pub (crate) fn load_decals(&mut self) {
+        self.decal_wads.push(Wad::new((WAD_DIR.clone() + "valve/decals.wad").as_str()));
+        self.decal_wads.push(Wad::new((WAD_DIR.clone() + "cstrike/decals.wad").as_str()));
+        let info_decals: Vec<&Entity> = self.find_entities("infodecal".to_string());
+        if info_decals.is_empty() {
+            info!(&crate::LOGGER, "No decals to load, skipping");
+            return;
+        }
+        let mut loaded_tex: HashMap<String, usize> = HashMap::new();
+        for info_decal in info_decals.iter() {
+            let origin_str: Option<&String> = info_decal.find_property("origin".to_string());
+            if origin_str.is_none() {
+                continue;
+            }
+            let split_origin: Vec<&str> = origin_str.unwrap().split(" ").collect();
+            if split_origin.len() != 3 {
+                error!(&crate::LOGGER, "Expected 3D origin, got {}D, skipping", split_origin.len());
+                continue;
+            }
+            let origin: glm::Vec3 = glm::vec3(
+                split_origin[0].parse::<f32>().unwrap(),
+                split_origin[1].parse::<f32>().unwrap(),
+                split_origin[2].parse::<f32>().unwrap(),
+            );
+            let leaf = self.find_leaf(origin, 0);
+            if leaf.is_none() {
+                error!(&crate::LOGGER, "Cannot find decal leaf, skipping");
+                continue;
+            }
+            let current_leaf = self.leaves.get(leaf.unwrap());
+            if current_leaf.is_none() {
+                error!(&crate::LOGGER, "Cannot find leaf, skipping");
+                continue;
+            }
+            for j in 0..current_leaf.unwrap().mark_surface_count as usize {
+                let face: &bsp30::Face = &self.faces[self.mark_surfaces[current_leaf.unwrap().first_mark_surface as usize + j] as usize];
+                let normal: glm::Vec3 = self.planes[face.plane_index as usize].normal;
+                let vertex: glm::Vec3;
+                let edge_index: i32 = self.surface_edges[face.first_edge_index as usize];
+                if edge_index > 0 {
+                    vertex = self.vertices[self.edges[edge_index as usize].vertex_index[0] as usize];
+                } else {
+                    vertex = self.vertices[self.edges[(-edge_index) as usize].vertex_index[1] as usize];
+                }
+                if !point_in_plane(origin, normal, glm::dot(normal, vertex)) {
+                    continue;
+                }
+                let tex_name: Option<&String> = info_decal.find_property("texture".to_string());
+                if tex_name.is_none() {
+                    error!(&crate::LOGGER, "Unable to retrieve texture name from decal");
+                    break;
+                }
+                let it: Option<&usize> = loaded_tex.get(tex_name.unwrap());
+                let mut it_val: usize = 0;
+                if it.is_none() {
+                    let mip_tex: Option<MipmapTexture> = self.load_decal_texture(&tex_name.unwrap());
+                    if mip_tex.is_none() {
+                        error!(&crate::LOGGER, "Unable to load mipmap texture for {}", &tex_name.unwrap());
+                        break;
+                    }
+                    it_val = self.m_textures.len();
+                    loaded_tex.insert(tex_name.unwrap().clone(), self.m_textures.len());
+                    self.m_textures.push(mip_tex.unwrap());
+                }
+                let img_0: &Image = &self.m_textures[it_val].img[0];
+                let h2: f32 = img_0.height as f32 / 2.0;
+                let w2: f32 = img_0.width as f32 / 2.0;
+                let s: glm::Vec3 = self.texture_infos[face.texture_info as usize].s;
+                let t: glm::Vec3 = self.texture_infos[face.texture_info as usize].t;
+                let decal: Decal = Decal {
+                    normal,
+                    tex_index: it_val as u32,
+                    vec: [
+                        origin - t * h2 - s * w2,
+                        origin - t * h2 + s * w2,
+                        origin + t * h2 + s * w2,
+                        origin + t * h2 - s * w2,
+                    ],
+                };
+                break;
+            }
+        }
+        info!(&crate::LOGGER, "Loaded {} decals, {} decal textures", self.m_decals.len(), loaded_tex.len());
     }
 
     pub (crate) fn load_light_maps(&self, p_light_map_data: Vec<u8>) {
