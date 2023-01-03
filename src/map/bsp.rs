@@ -359,7 +359,14 @@ impl BSP {
         );
     }
 
-    pub (crate) fn load_models(&self, reader: BufReader<File>) {
+    pub (crate) fn load_models(&self, reader: &mut BufReader<File>) {
+        let sub_models: Vec<bsp30::Model> = Vec::with_capacity(
+            self.header.lump[bsp30::LumpType::LumpModels as usize].length as usize / std::mem::size_of::<bsp30::Model>()
+        );
+        reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpModels as usize].offset as u64));
+        for _ in 0..sub_models.len() {
+            sub_models.push(bsp30::Model::from_reader(reader));
+        }
         todo!()
     }
 

@@ -171,7 +171,6 @@ impl Resource for MipTex {
         let mut offsets: [u32; MIP_LEVELS] = [0; MIP_LEVELS];
         for i in 0..MIP_LEVELS {
             match reader.read_u32::<Self::T>() {
-                Ok(0) => break,
                 Ok(value) => offsets[i] = value,
                 Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Unable to read texture mip levels: {}", error))),
             }
@@ -202,6 +201,43 @@ pub struct Model {
     pub vis_leaves: i32,
     pub first_face: i32,
     pub face_count: i32,
+}
+
+impl Resource for Model {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let lower: glm::Vec3 = glm::vec3(
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+        );
+        let upper: glm::Vec3 = glm::vec3(
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+        );
+        let mut head_nodes_index: [i32; MAX_MAP_HULLS] = [0; MAX_MAP_HULLS];
+        for i in 0..MAX_MAP_HULLS {
+            match reader.read_i32::<Self::T>() {
+                Ok(value) => head_nodes_index[i] = value,
+                Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Unable to read model head node index: {}", error))),
+            }
+        }
+        let vis_leaves: i32 = reader.read_i32::<Self::T>().unwrap();
+        let first_face: i32 = reader.read_i32::<Self::T>().unwrap();
+        let face_count: i32 = reader.read_i32::<Self::T>().unwrap();
+        return Ok(Model {
+            lower,
+            upper,
+            head_nodes_index,
+            vis_leaves,
+            first_face,
+            face_count,
+        });
+    }
+
 }
 
 pub struct ClipNode {
