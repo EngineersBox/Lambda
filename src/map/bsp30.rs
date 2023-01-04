@@ -91,9 +91,42 @@ pub struct Lump {
     pub length: i32,
 }
 
+impl Resource for Lump {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let offset: i32 = reader.read_i32::<Self::T>().unwrap();
+        let length: i32 = reader.read_i32::<Self::T>().unwrap();
+        return Ok(Lump {
+            offset,
+            length,
+        });
+    }
+
+}
+
 pub struct Header {
     pub version: i32,
     pub lump: [Lump; LumpType::HeaderLumps as usize],
+}
+
+impl Resource for Header {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let version: i32 = reader.read_i32::<Self::T>().unwrap();
+        let lump: Vec<Lump> = Vec::with_capacity(LumpType::HeaderLumps as usize);
+        for i in 0..LumpType::HeaderLumps as usize {
+            lump.push(Lump::from_reader(reader).unwrap());
+        }
+        return Ok(Header {
+            version,
+            lump: lump.try_into().ok().unwrap(),
+        });
+    }
+
 }
 
 pub struct Node {

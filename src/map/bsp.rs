@@ -1,6 +1,6 @@
 use std::collections::HashMap;
-use std::io::{BufReader, Read, Seek, SeekFrom};
-use std::fs::File;
+use std::io::{Result, Error, ErrorKind, BufReader, Read, Seek, SeekFrom};
+use std::fs::{File, OpenOptions};
 use bit_set::BitSet;
 use lazy_static::lazy_static;
 
@@ -130,13 +130,49 @@ lazy_static!{
 
 impl BSP {
 
-    pub fn new(path: String) -> Self {
+    pub fn from_file(path: &String) -> Result<Self> {
+        let file: File = match OpenOptions::new()
+            .read(true)
+            .open(path) {
+            Ok(f) => f,
+            Err(error) => return Err(Error::new(
+                error.kind(),
+                format!("Failed to open BSP file for reading: {}", error.to_string())
+            ))
+        };
+        let mut reader: BufReader<File> = BufReader::new(file);
+        info!(&crate::LOGGER, "Loading BSP file: {}", path);
+        let header: bsp30::Header = bsp30::Header::from_reader(&mut reader)?;
+        if header.version != 30 {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("Invalid BSP version {}, expected 30", header.version)
+            ));
+        }
+        // Initialise BSP component vectors
+        macro_rules! bsp_comp_init {
+            ($name:ident,$lump_type:expr,$element_type:ty) => {
+                let mut $name: Vec<$element_type> = Vec::with_capacity(
+                    header.lump[$lump_type as usize].length as usize / std::mem::size_of::<$element_type>()
+                );
+            }
+        }
+        bsp_comp_init!(nodes, bsp30::LumpType::LumpNodes, bsp30::Node);
+        bsp_comp_init!(leaves, bsp30::LumpType::LumpLeaves, bsp30::Leaf);
+        bsp_comp_init!(mark_surfaces, bsp30::LumpType::LumpMarkSurfaces, bsp30::MarkSurface);
+        bsp_comp_init!(faces, bsp30::LumpType::LumpFaces, bsp30::Face);
+        bsp_comp_init!(clip_ndoes, bsp30::LumpType::LumpClipNodes, bsp30::ClipNode);
+        bsp_comp_init!(surface_edges, bsp30::LumpType::LumpSurfaceEdges, bsp30::SurfaceEdge);
+        bsp_comp_init!(edges, bsp30::LumpType::LumpEdges, bsp30::Edge);
+        bsp_comp_init!(vertices, bsp30::LumpType::LumpVertexes, bsp30::Vertex);
+        bsp_comp_init!(planes, bsp30::LumpType::LumpPlanes, bsp30::Plane);
+        // Read BSP component data
         todo!()
     }
 
     pub fn find_entity<'a>(&self, name: &String) -> Option<&'a Entity> {
         for entity in self.entities.iter() {
-            if let Some(classname) = entity.find_property("classname".to_string()) {
+            if let Some(classname) = entity.find_property(&"classname".to_string()) {
                 if classname == name {
                     return Some(entity);
                 }
@@ -148,7 +184,7 @@ impl BSP {
     pub fn find_entities<'a>(&self, name: &String) -> Vec<&'a Entity> {
         let result: Vec<&'a Entity> = Vec::new();
         for entity in self.entities.iter() {
-            if let Some(classname) = entity.find_property("classname".to_string()) {
+            if let Some(classname) = entity.find_property(&"classname".to_string()) {
                 if classname == name {
                     result.push(entity);
                 }
@@ -204,7 +240,7 @@ impl BSP {
     pub (crate) fn load_textures(&mut self, reader: &mut BufReader<File>) {
         info!(&crate::LOGGER, "Loading texture WADs...");
         if let Some(world_spawn) = self.find_entity(&"world_spawn".to_string()) {
-            if let Some(wad) = world_spawn.find_property(String::from("wad")) {
+            if let Some(wad) = world_spawn.find_property(&String::from("wad")) {
                 self.load_wad_files(wad);
             }
         }
@@ -291,7 +327,7 @@ impl BSP {
         }
         let mut loaded_tex: HashMap<String, usize> = HashMap::new();
         for info_decal in info_decals.iter() {
-            let origin_str: Option<&String> = info_decal.find_property("origin".to_string());
+            let origin_str: Option<&String> = info_decal.find_property(&"origin".to_string());
             if origin_str.is_none() {
                 continue;
             }
@@ -310,7 +346,7 @@ impl BSP {
                 error!(&crate::LOGGER, "Cannot find decal leaf, skipping");
                 continue;
             }
-            let current_leaf = self.leaves.get(leaf.unwrap());
+            let current_leaf = self.leaves.get(leaf.unwrap() as usize);
             if current_leaf.is_none() {
                 error!(&crate::LOGGER, "Cannot find leaf, skipping");
                 continue;
@@ -328,7 +364,7 @@ impl BSP {
                 if !point_in_plane(origin, normal, glm::dot(normal, vertex)) {
                     continue;
                 }
-                let tex_name: Option<&String> = info_decal.find_property("texture".to_string());
+                let tex_name: Option<&String> = info_decal.find_property(&"texture".to_string());
                 if tex_name.is_none() {
                     error!(&crate::LOGGER, "Unable to retrieve texture name from decal");
                     break;
@@ -530,10 +566,10 @@ impl BSP {
     }
 
     fn is_brush_entity(entity: &Entity) -> bool {
-        if entity.find_property("model".to_string()).is_none() {
+        if entity.find_property(&"model".to_string()).is_none() {
             return false;
         }
-        let classname: &String = match entity.find_property("classname".to_string()) {
+        let classname: &String = match entity.find_property(&"classname".to_string()) {
             Some(value) => value,
             None => return false,
         };
