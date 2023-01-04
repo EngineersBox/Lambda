@@ -3,14 +3,13 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::fs::File;
 use bit_set::BitSet;
 use lazy_static::lazy_static;
-use arr_macro::arr;
 
 use crate::map::bsp30::{self, TextureInfo};
 use crate::map::wad::{Wad, MipmapTexture};
 use crate::resource::image::Image;
 use crate::resource::resource::Resource;
 use crate::scene::entity::Entity;
-use crate::util::mathutil::point_in_plane;
+use crate::util::mathutil::{point_in_plane, point_in_box};
 
 #[derive(Default, Clone)]
 pub struct FaceTexCoords {
@@ -545,11 +544,52 @@ impl BSP {
     }
 
     pub (crate) fn decompress_vis(&self, leaf: usize, compresed_vis: Vec<u8>) -> BitSet {
-        todo!()
+        let mut pvs: BitSet = BitSet::new();
+        pvs.reserve_len(self.leaves.len() - 1);
+        let mut read: usize = self.leaves[leaf].vis_offset as usize;
+        let row: usize = (self.vis_lists.len() + 7) / 8;
+        while pvs.len() / 8 < row {
+            if read > compresed_vis.len() {
+                pvs.insert(0usize);
+            } else {
+                read += 1;
+                for _ in 0..read {
+                    pvs.insert(0x00);
+                    if pvs.len() / 8 >= row {
+                        break;
+                    }
+                }
+            }
+            read += 1;
+        }
+        return pvs;
     }
     
-    pub (crate) fn find_leaf(&self, pos: glm::Vec3, node: usize) -> Option<usize> {
-        todo!()
+    fn array_to_vec3(arr: [i16; 3]) -> glm::Vec3 {
+        return glm::vec3(
+            arr[0] as f32,
+            arr[1] as f32,
+            arr[2] as f32,
+        );
+    }
+
+    pub (crate) fn find_leaf(&self, pos: glm::Vec3, node: usize) -> Option<i16> {
+        for child_index in self.nodes[node].child_index {
+            if child_index >= 0 && point_in_box(
+                pos,
+                BSP::array_to_vec3(self.nodes[child_index as usize].lower),
+                BSP::array_to_vec3(self.nodes[child_index as usize].upper),
+            ) {
+                return self.find_leaf(pos, child_index as usize);
+            } else if (!child_index) != 0 && point_in_box(
+                pos,
+                BSP::array_to_vec3(self.leaves[!child_index as usize].lower),
+                BSP::array_to_vec3(self.leaves[!child_index as usize].upper),
+            ) {
+                return Some(!child_index);
+            }
+        }
+        return None;
     }
 
 }
