@@ -5,7 +5,6 @@ mod scene;
 mod logging;
 mod util;
 
-#[macro_use]
 extern crate glium;
 extern crate glm;
 extern crate bit_set;
@@ -17,6 +16,7 @@ extern crate slog_term;
 extern crate slog_async;
 extern crate slog_json;
 extern crate lazy_static;
+extern crate arr_macro;
 
 use glium::{glutin, Surface};
 pub(crate) use lazy_static::lazy_static;

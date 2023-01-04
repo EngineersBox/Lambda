@@ -3,10 +3,12 @@ use std::io::{BufReader, Read, Seek, SeekFrom};
 use std::fs::File;
 use bit_set::BitSet;
 use lazy_static::lazy_static;
+use arr_macro::arr;
 
 use crate::map::bsp30::{self, TextureInfo};
 use crate::map::wad::{Wad, MipmapTexture};
 use crate::resource::image::Image;
+use crate::resource::resource::Resource;
 use crate::scene::entity::Entity;
 use crate::util::mathutil::point_in_plane;
 
@@ -31,9 +33,58 @@ pub struct Hull {
     pub clip_maxs: glm::Vec3,
 }
 
+impl Hull {
+
+    pub fn new() -> Self {
+        return Hull {
+            clip_nodes: Vec::with_capacity(0),
+            planes: Vec::with_capacity(0),
+            first_clip_node: 0,
+            last_clip_node: 0,
+            clip_mins: glm::vec3(0.0, 0.0, 0.0),
+            clip_maxs: glm::vec3(0.0, 0.0, 0.0),
+        };
+    }
+
+}
+
+impl Clone for Hull {
+
+    fn clone(&self) -> Self {
+        return Hull {
+            clip_nodes: self.clip_nodes.iter()
+                .map(|cn: &bsp30::ClipNode| cn.clone())
+                .collect(),
+            planes: self.planes.iter()
+                .map(|plane: &bsp30::Plane| plane.clone())
+                .collect(),
+            first_clip_node: self.first_clip_node,
+            last_clip_node: self.last_clip_node,
+            clip_mins: self.clip_mins.clone(),
+            clip_maxs: self.clip_maxs.clone(),
+        };
+    }
+
+}
+#[derive(Clone)]
 pub struct Model {
     pub model: bsp30::Model,
     pub hulls: [Hull; bsp30::MAX_MAP_HULLS],
+}
+
+impl Model {
+
+    pub fn new() -> Self {
+        return Model {
+            model: bsp30::Model::new(),
+            hulls: (0..bsp30::MAX_MAP_HULLS).map(|_| Hull::new())
+                .collect::<Vec<_>>()
+                .try_into()
+                .ok()
+                .unwrap(),
+        };
+    }
+
 }
 
 pub struct BSP {
@@ -359,23 +410,138 @@ impl BSP {
         );
     }
 
-    pub (crate) fn load_models(&self, reader: &mut BufReader<File>) {
-        let sub_models: Vec<bsp30::Model> = Vec::with_capacity(
+    pub (crate) fn load_models(&mut self, reader: &mut BufReader<File>) {
+        let mut sub_models: Vec<bsp30::Model> = Vec::with_capacity(
             self.header.lump[bsp30::LumpType::LumpModels as usize].length as usize / std::mem::size_of::<bsp30::Model>()
         );
         reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpModels as usize].offset as u64));
         for _ in 0..sub_models.len() {
-            sub_models.push(bsp30::Model::from_reader(reader));
+            sub_models.push(bsp30::Model::from_reader(reader).unwrap());
+        }
+        self.hull_0_clip_nodes = self.nodes.iter().map(|node: &bsp30::Node| -> bsp30::ClipNode {
+            let mut clipnode: bsp30::ClipNode = Default::default();
+            clipnode.plane_index = node.plane_index as i32;
+            for j in 0..2 {
+                if node.child_index[j] < 0 {
+                    clipnode.child_index[j] = self.leaves[!node.child_index[j] as usize].content as i16;
+                } else {
+                    clipnode.child_index[j] = node.child_index[j];
+                }
+            }
+            return clipnode;
+        }).collect();
+        let mut model_0: Model = Model::new();
+        let mut hull_0: &mut Hull = &mut model_0.hulls[0];
+        hull_0.clip_nodes = self.hull_0_clip_nodes.iter()
+            .map(|cn: &bsp30::ClipNode| bsp30::ClipNode {
+                plane_index: cn.plane_index,
+                child_index: [cn.child_index[0], cn.child_index[1]],
+            }).collect();
+        hull_0.first_clip_node = 0;
+        hull_0.last_clip_node = self.hull_0_clip_nodes.len() as isize - 1isize;
+        hull_0.planes = self.planes.iter()
+            .map(|plane: &bsp30::Plane| bsp30::Plane {
+                normal: plane.normal,
+                dist: plane.dist,
+                r#type: plane.r#type,
+            }).collect();
+        for i in 1..=3 {
+            let mut hull: &mut Hull = &mut model_0.hulls[i];
+            hull.clip_nodes = self.clip_nodes.iter()
+                .map(|cn: &bsp30::ClipNode| bsp30::ClipNode {
+                    plane_index: cn.plane_index,
+                    child_index: [cn.child_index[0], cn.child_index[1]],
+                }).collect();
+            hull.first_clip_node = 0;
+            hull.last_clip_node = self.clip_nodes.len() as isize - 1isize;
+            hull.planes = self.planes.iter()
+                .map(|plane: &bsp30::Plane| bsp30::Plane {
+                    normal: plane.normal,
+                    dist: plane.dist,
+                    r#type: plane.r#type,
+                }).collect();
+        }
+        let hull_1: &mut Hull = &mut model_0.hulls[1];
+        hull_1.clip_mins[0] = -16.0;
+        hull_1.clip_mins[1] = -16.0;
+        hull_1.clip_mins[1] = -36.0;
+        hull_1.clip_maxs[0] = 16.0;
+        hull_1.clip_maxs[1] = 16.0;
+        hull_1.clip_maxs[2] = 36.0;
+
+        let hull_2: &mut Hull = &mut model_0.hulls[2];
+        hull_2.clip_mins[0] = -32.0;
+        hull_2.clip_mins[1] = -32.0;
+        hull_2.clip_mins[2] = -32.0;
+        hull_2.clip_maxs[0] = 32.0;
+        hull_2.clip_maxs[1] = 32.0;
+        hull_2.clip_maxs[2] = 32.0;
+
+        let hull_3: &mut Hull = &mut model_0.hulls[3];
+        hull_3.clip_mins[0] = -16.0;
+        hull_3.clip_mins[1] = -16.0;
+        hull_3.clip_mins[1] = -18.0;
+        hull_3.clip_maxs[0] = 16.0;
+        hull_3.clip_maxs[1] = 16.0;
+        hull_3.clip_maxs[2] = 18.0;
+        for i in 0..sub_models.len() {
+            if i != 0 {
+                self.models.push(self.models.last().unwrap().clone())
+            }
+            let mut model: &mut Model = &mut self.models[self.models.len() - 1];
+            model.model = sub_models[i];
         }
         todo!()
     }
 
-    pub (crate) fn parse_entities(&self, entities_string: &String) {
-        todo!()
+    fn is_brush_entity(entity: &Entity) -> bool {
+        if entity.find_property("model".to_string()).is_none() {
+            return false;
+        }
+        let classname: &String = match entity.find_property("classname".to_string()) {
+            Some(value) => value,
+            None => return false,
+        };
+        return match classname.as_str() {
+            "func_door_rotating"
+                | "func_door"
+                | "func_illusionary"
+                | "func_wall"
+                | "func_breakable"
+                | "func_button" => true,
+            _ => false,
+        };
     }
 
-    pub (crate) fn count_vis_leaves(&self, i_node: usize) -> usize {
-        todo!()
+    pub (crate) fn parse_entities(&mut self, entities_string: &String) {
+        let mut pos: usize = 0;
+        loop {
+            pos = match entities_string[pos..].find('{') {
+                Some(new_pos) => new_pos,
+                None => break,
+            };
+            let end: usize = match entities_string[pos..].find('}') {
+                Some(end_pos) => end_pos,
+                None => {
+                    error!(&crate::LOGGER, "Cannot find ending brace for entity, skipping.");
+                    continue;
+                },
+            };
+            self.entities.push(Entity::new(&entities_string[(pos + 1)..(end - pos - 1)].to_string()));
+            pos = end + 1;
+        }
+    }
+
+    pub (crate) fn count_vis_leaves(&self, i_node: i16) -> usize {
+        if i_node < 0 {
+            if i_node == -1 || self.leaves[!(i_node as usize)].content == bsp30::ContentType::ContentsSolid as i32 {
+                return 0;
+            }
+            return 1;
+        }
+        let left_node_count: usize = self.count_vis_leaves(self.nodes[i_node as usize].child_index[0]);
+        let right_node_count: usize = self.count_vis_leaves(self.nodes[i_node as usize].child_index[1]);
+        return left_node_count + right_node_count;
     }
 
     pub (crate) fn decompress_vis(&self, leaf: usize, compresed_vis: Vec<u8>) -> BitSet {

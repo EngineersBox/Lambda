@@ -117,6 +117,7 @@ pub struct Leaf {
 
 pub type MarkSurface = u16;
 
+#[derive(Copy, Clone)]
 pub struct Plane {
     pub normal: glm::Vec3,
     pub dist: f32,
@@ -194,6 +195,7 @@ pub struct TextureInfo {
     pub flags: u32,
 }
 
+#[derive(Copy,Clone)]
 pub struct Model {
     pub lower: glm::Vec3,
     pub upper: glm::Vec3,
@@ -201,6 +203,21 @@ pub struct Model {
     pub vis_leaves: i32,
     pub first_face: i32,
     pub face_count: i32,
+}
+
+impl Model {
+
+    pub fn new() -> Self {
+        return Model {
+            lower: glm::vec3(0.0, 0.0, 0.0),
+            upper: glm::vec3(0.0, 0.0, 0.0),
+            head_nodes_index: [0; MAX_MAP_HULLS],
+            vis_leaves: 0,
+            first_face: 0,
+            face_count: 0,
+        };
+    }
+
 }
 
 impl Resource for Model {
@@ -240,6 +257,7 @@ impl Resource for Model {
 
 }
 
+#[derive(Default,Clone,Copy)]
 pub struct ClipNode {
     pub plane_index: i32,
     pub child_index: [i16; 2],

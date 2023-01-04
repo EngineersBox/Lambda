@@ -6,7 +6,7 @@ pub struct Entity {
 
 impl Entity {
 
-    pub fn new(properties_string: String) -> Self {
+    pub fn new(properties_string: &String) -> Self {
         let mut pos: usize = 0;
         let instance: Entity = Entity {
             properties: HashMap::new(),
