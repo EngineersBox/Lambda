@@ -117,6 +117,15 @@ pub struct BSP {
 
 lazy_static!{
     static ref WAD_DIR: String = String::from("../data/wads");
+    static ref SKY_DIR: String = String::from("../data/textures/sky");
+    static ref SKY_NAME_SUFFIXES: [String; 6] = [
+        String::from("ft"),
+        String::from("bk"),
+        String::from("up"),
+        String::from("dn"),
+        String::from("rt"),
+        String::from("lf"),
+    ];
 }
 
 impl BSP {
@@ -126,15 +135,42 @@ impl BSP {
     }
 
     pub fn find_entity<'a>(&self, name: &String) -> Option<&'a Entity> {
-        todo!()
+        for entity in self.entities.iter() {
+            if let Some(classname) = entity.find_property("classname".to_string()) {
+                if classname == name {
+                    return Some(entity);
+                }
+            }
+        }
+        return None;
     }
     
     pub fn find_entities<'a>(&self, name: &String) -> Vec<&'a Entity> {
-        todo!()
+        let result: Vec<&'a Entity> = Vec::new();
+        for entity in self.entities.iter() {
+            if let Some(classname) = entity.find_property("classname".to_string()) {
+                if classname == name {
+                    result.push(entity);
+                }
+            }
+        }
+        return result;
     }
 
     pub fn load_skybox(&self) -> Option<[Image; 6]> {
-        todo!()
+        let world_spawn: Option<&Entity> = self.find_entity(&"world_spawn".to_string());
+        let skyname: Option<&String> = world_spawn?.find_property(&"skyname".to_string());
+        let result: Vec<Image> = Vec::with_capacity(6);
+        for i in 0..6 {
+            result.push(Image::from_path(&(
+                SKY_DIR.clone()
+                + "/"
+                + skyname?.as_str()
+                + SKY_NAME_SUFFIXES[i].clone().as_str()
+                + ".tga"
+            )));
+        }
+        return result.try_into().ok();
     }
 
     pub (crate) fn load_wad_files(&mut self, wad_str: &String) {

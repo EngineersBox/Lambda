@@ -17,4 +17,8 @@ impl Image {
         };
     }
 
+    pub fn from_path(path: &String) -> Self {
+
+    }
+
 }

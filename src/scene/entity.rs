@@ -32,8 +32,8 @@ impl Entity {
         return instance;
     }
 
-    pub fn find_property<'a>(&self, name: String) -> Option<&'a String> {
-        return self.properties.get(&name);
+    pub fn find_property<'a>(&self, name: &String) -> Option<&'a String> {
+        return self.properties.get(name);
     }
 
 }
