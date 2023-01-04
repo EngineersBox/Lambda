@@ -149,14 +149,19 @@ impl BSP {
                 format!("Invalid BSP version {}, expected 30", header.version)
             ));
         }
-        // Initialise BSP component vectors
+        // Init and read BSP component vectors
         macro_rules! bsp_comp_init {
             ($name:ident,$lump_type:expr,$element_type:ty) => {
                 let mut $name: Vec<$element_type> = Vec::with_capacity(
                     header.lump[$lump_type as usize].length as usize / std::mem::size_of::<$element_type>()
                 );
+                reader.seek(SeekFrom::Start(header.lump[$lump_type as usize].offset as u64));
+                for _ in 0..$name.len() {
+                    $name.push($element_type::from_reader(&mut reader)?);
+                }
             }
         }
+        // TODO: Implement Resource trait for all bsp30 structures
         bsp_comp_init!(nodes, bsp30::LumpType::LumpNodes, bsp30::Node);
         bsp_comp_init!(leaves, bsp30::LumpType::LumpLeaves, bsp30::Leaf);
         bsp_comp_init!(mark_surfaces, bsp30::LumpType::LumpMarkSurfaces, bsp30::MarkSurface);
@@ -166,8 +171,7 @@ impl BSP {
         bsp_comp_init!(edges, bsp30::LumpType::LumpEdges, bsp30::Edge);
         bsp_comp_init!(vertices, bsp30::LumpType::LumpVertexes, bsp30::Vertex);
         bsp_comp_init!(planes, bsp30::LumpType::LumpPlanes, bsp30::Plane);
-        // Read BSP component data
-        todo!()
+   
     }
 
     pub fn find_entity<'a>(&self, name: &String) -> Option<&'a Entity> {
