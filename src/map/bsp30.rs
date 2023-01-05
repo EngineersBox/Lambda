@@ -404,6 +404,37 @@ pub struct TextureInfo {
     pub flags: u32,
 }
 
+impl Resource for TextureInfo {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let s: glm::Vec3 = glm::vec3(
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+        );
+        let s_shift: f32 = reader.read_f32::<Self::T>().unwrap();
+        let t: glm::Vec3 = glm::vec3(
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+        );
+        let t_shift: f32 = reader.read_f32::<Self::T>().unwrap();
+        let mip_tex_index: u32 = reader.read_u32::<Self::T>().unwrap();
+        let flags: u32 = reader.read_u32::<Self::T>().unwrap();
+        return Ok(TextureInfo {
+            s,
+            s_shift,
+            t,
+            t_shift,
+            mip_tex_index,
+            flags,
+        });
+    }
+
+}
+
 #[derive(Copy,Clone)]
 pub struct Model {
     pub lower: glm::Vec3,

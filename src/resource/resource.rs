@@ -1,4 +1,4 @@
-use std::io::{self, Cursor, BufReader};
+use std::io::{self, BufReader};
 use byteorder::{ByteOrder, ReadBytesExt};
 
 pub trait Resource {

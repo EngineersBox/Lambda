@@ -3,6 +3,7 @@ use std::io::{Result, Error, ErrorKind, BufReader, Read, Seek, SeekFrom};
 use std::fs::{File, OpenOptions};
 use bit_set::BitSet;
 use lazy_static::lazy_static;
+use byteorder::{ReadBytesExt};
 
 use crate::map::bsp30::{self, TextureInfo};
 use crate::map::wad::{Wad, MipmapTexture};
@@ -156,7 +157,7 @@ impl BSP {
                     header.lump[$lump_type as usize].length as usize / std::mem::size_of::<$element_type>()
                 );
                 reader.seek(SeekFrom::Start(header.lump[$lump_type as usize].offset as u64));
-                for _ in 0..$name.len() {
+                for _ in 0..$name.capacity() {
                     $name.push(<$element_type>::from_reader(&mut reader)?);
                 }
             }
@@ -170,7 +171,20 @@ impl BSP {
         bsp_comp_init!(edges, bsp30::LumpType::LumpEdges, bsp30::Edge);
         bsp_comp_init!(vertices, bsp30::LumpType::LumpVertexes, bsp30::Vertex);
         bsp_comp_init!(planes, bsp30::LumpType::LumpPlanes, bsp30::Plane);
-   
+        // Read and parse entities
+        let entity_buffer: Vec<u8> = Vec::with_capacity(header.lump[bsp30::LumpType::LumpEntities as usize].length as usize);
+        for _ in 0..entity_buffer.capacity() {
+            entity_buffer.push(reader.read_u8().unwrap());
+        }
+        reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64));
+        let entities: Vec<Entity> = BSP::parse_entities(&String::from_utf8(entity_buffer).unwrap());
+        // Textures
+        let texture_infos: Vec<bsp30::TextureInfo> = Vec::with_capacity(header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
+        reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTexinfo as usize].offset as u64));
+        for _ in 0..texture_infos.capacity() {
+            texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader).unwrap());
+        }
+        return Ok();
     }
 
     pub fn find_entity<'a>(&self, name: &String) -> Option<&'a Entity> {
@@ -489,7 +503,7 @@ impl BSP {
             self.header.lump[bsp30::LumpType::LumpModels as usize].length as usize / std::mem::size_of::<bsp30::Model>()
         );
         reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpModels as usize].offset as u64));
-        for _ in 0..sub_models.len() {
+        for _ in 0..sub_models.capacity() {
             sub_models.push(bsp30::Model::from_reader(reader).unwrap());
         }
         self.hull_0_clip_nodes = self.nodes.iter().map(|node: &bsp30::Node| -> bsp30::ClipNode {
@@ -558,7 +572,7 @@ impl BSP {
         hull_3.clip_maxs[0] = 16.0;
         hull_3.clip_maxs[1] = 16.0;
         hull_3.clip_maxs[2] = 18.0;
-        for i in 0..sub_models.len() {
+        for i in 0..sub_models.capacity() {
             if i != 0 {
                 self.models.push(self.models.last().unwrap().clone())
             }
@@ -587,7 +601,8 @@ impl BSP {
         };
     }
 
-    pub (crate) fn parse_entities(&mut self, entities_string: &String) {
+    pub (crate) fn parse_entities(entities_string: &String) -> Vec<Entity> {
+        let entities: Vec<Entity> = Vec::new();
         let mut pos: usize = 0;
         loop {
             pos = match entities_string[pos..].find('{') {
@@ -601,9 +616,10 @@ impl BSP {
                     continue;
                 },
             };
-            self.entities.push(Entity::new(&entities_string[(pos + 1)..(end - pos - 1)].to_string()));
+            entities.push(Entity::new(&entities_string[(pos + 1)..(end - pos - 1)].to_string()));
             pos = end + 1;
         }
+        return entities;
     }
 
     pub (crate) fn count_vis_leaves(&self, i_node: i16) -> usize {
