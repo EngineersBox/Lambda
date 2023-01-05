@@ -355,6 +355,19 @@ pub struct TextureHeader {
     pub mip_texture_count: u32,
 }
 
+impl Resource for TextureHeader {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let mip_texture_count: u32 = reader.read_u32::<Self::T>().unwrap();
+        return Ok(TextureHeader {
+            mip_texture_count,
+        });
+    }
+
+}
+
 pub type MipTexOffset = i32;
 
 pub const MAX_TEXTURE_NAME: usize = 16;

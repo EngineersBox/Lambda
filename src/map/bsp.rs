@@ -184,6 +184,19 @@ impl BSP {
         for _ in 0..texture_infos.capacity() {
             texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader).unwrap());
         }
+        reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64));
+        let texture_header: bsp30::TextureHeader = bsp30::TextureHeader::from_reader(&mut reader).unwrap();
+        let mip_textures: Vec<bsp30::MipTex> = Vec::with_capacity(texture_header.mip_texture_count as usize);
+        let mip_texture_offsets: Vec<bsp30::MipTexOffset> = Vec::with_capacity(texture_header.mip_texture_count as usize);
+        for _ in 0..mip_texture_offsets.capacity() {
+            mip_texture_offsets.push(bsp30::MipTexOffset::from_reader(&mut reader).unwrap());
+        }
+        for i in 0..mip_textures.capacity() {
+            reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + mip_texture_offsets[i] as u64));
+            mip_textures[i] = bsp30::MipTex::from_reader(&mut reader).unwrap();
+        }
+        // TODO: Refactor to create BSP object with default field values and then use member
+        // methods on it.
         return Ok();
     }
 
