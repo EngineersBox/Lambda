@@ -157,11 +157,10 @@ impl BSP {
                 );
                 reader.seek(SeekFrom::Start(header.lump[$lump_type as usize].offset as u64));
                 for _ in 0..$name.len() {
-                    $name.push($element_type::from_reader(&mut reader)?);
+                    $name.push(<$element_type>::from_reader(&mut reader)?);
                 }
             }
         }
-        // TODO: Implement Resource trait for all bsp30 structures
         bsp_comp_init!(nodes, bsp30::LumpType::LumpNodes, bsp30::Node);
         bsp_comp_init!(leaves, bsp30::LumpType::LumpLeaves, bsp30::Leaf);
         bsp_comp_init!(mark_surfaces, bsp30::LumpType::LumpMarkSurfaces, bsp30::MarkSurface);

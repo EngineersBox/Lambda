@@ -138,6 +138,40 @@ pub struct Node {
     pub last_face: u16,
 }
 
+impl Resource for Node {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let plane_index: u32 = reader.read_u32::<Self::T>().unwrap();
+        let child_index: [i16; 2] = [
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+        ];
+        let lower: [i16; 3] = [
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+        ];
+        let upper: [i16; 3] = [
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+        ];
+        let first_face: u16 = reader.read_u16::<Self::T>().unwrap();
+        let last_face: u16 = reader.read_u16::<Self::T>().unwrap();
+        return Ok(Node {
+            plane_index,
+            child_index,
+            lower,
+            upper,
+            first_face,
+            last_face,
+        });
+    }
+
+}
+
 pub struct Leaf {
     pub content: i32,
     pub vis_offset: i32,
@@ -148,7 +182,56 @@ pub struct Leaf {
     pub ambient_levels: [u8; 4],
 }
 
+impl Resource for Leaf {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let content: i32 = reader.read_i32::<Self::T>().unwrap();
+        let vis_offset: i32 = reader.read_i32::<Self::T>().unwrap();
+        let lower: [i16; 3] = [
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+        ];
+        let upper: [i16; 3] = [
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+        ];
+        let first_mark_surface: u16 = reader.read_u16::<Self::T>().unwrap();
+        let mark_surface_count: u16 = reader.read_u16::<Self::T>().unwrap();
+        let ambient_levels: [u8; 4] = [
+            reader.read_u8().unwrap(),
+            reader.read_u8().unwrap(),
+            reader.read_u8().unwrap(),
+            reader.read_u8().unwrap(),
+        ];
+        return Ok(Leaf {
+            content,
+            vis_offset,
+            lower,
+            upper,
+            first_mark_surface,
+            mark_surface_count,
+            ambient_levels,
+        });
+    }
+
+}
+
 pub type MarkSurface = u16;
+
+impl Resource for MarkSurface {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let mark_surface: MarkSurface = reader.read_u16::<Self::T>().unwrap() as MarkSurface;
+        return Ok(mark_surface);
+    }
+
+}
 
 #[derive(Copy, Clone)]
 pub struct Plane {
@@ -157,10 +240,62 @@ pub struct Plane {
     pub r#type: i32,
 }
 
+impl Resource for Plane {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let normal: glm::Vec3 = glm::vec3(
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+        );
+        let dist: f32 = reader.read_f32::<Self::T>().unwrap();
+        let r#type: i32 = reader.read_i32::<Self::T>().unwrap();
+        return Ok(Plane {
+            normal,
+            dist,
+            r#type,
+        });
+    }
+
+}
+
 pub type Vertex = glm::Vec3;
+
+impl Resource for Vertex {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let vertex: glm::Vec3 = glm::vec3(
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+        );
+        return Ok(vertex);
+    }
+
+}
 
 pub struct Edge {
     pub vertex_index: [u16; 2],
+}
+
+impl Resource for Edge {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let vertex_index: [u16; 2] = [
+            reader.read_u16::<Self::T>().unwrap(),
+            reader.read_u16::<Self::T>().unwrap(),
+        ];
+        return Ok(Edge {
+            vertex_index,
+        });
+    }
+
 }
 
 pub struct Face {
@@ -173,7 +308,48 @@ pub struct Face {
     pub lightmap_offset: u32,
 }
 
+impl Resource for Face {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let plane_index: u16 = reader.read_u16::<Self::T>().unwrap();
+        let plane_size: u16 = reader.read_u16::<Self::T>().unwrap();
+        let first_edge_index: u32 = reader.read_u32::<Self::T>().unwrap();
+        let edge_count: u16 = reader.read_u16::<Self::T>().unwrap();
+        let texture_info: u16 = reader.read_u16::<Self::T>().unwrap();
+        let styles: [u8; 4] = [
+            reader.read_u8().unwrap(),
+            reader.read_u8().unwrap(),
+            reader.read_u8().unwrap(),
+            reader.read_u8().unwrap(),
+        ];
+        let lightmap_offset: u32 = reader.read_u32::<Self::T>().unwrap();
+        return Ok(Face {
+            plane_index,
+            plane_size,
+            first_edge_index,
+            edge_count,
+            texture_info,
+            styles,
+            lightmap_offset,
+        });
+    }
+
+}
+
 pub type SurfaceEdge = i32;
+
+impl Resource for SurfaceEdge {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let surface_edge: SurfaceEdge = reader.read_i32::<Self::T>().unwrap() as SurfaceEdge;
+        return Ok(surface_edge);
+    }
+
+}
 
 pub struct TextureHeader {
     pub mip_texture_count: u32,
@@ -294,4 +470,22 @@ impl Resource for Model {
 pub struct ClipNode {
     pub plane_index: i32,
     pub child_index: [i16; 2],
+}
+
+impl Resource for ClipNode {
+
+    type T = BigEndian;
+
+    fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
+        let plane_index: i32 = reader.read_i32::<Self::T>().unwrap();
+        let child_index: [i16; 2] = [
+            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>().unwrap(),
+        ];
+        return Ok(ClipNode {
+            plane_index,
+            child_index,
+        });
+    }
+
 }
