@@ -351,6 +351,7 @@ impl Resource for SurfaceEdge {
 
 }
 
+#[derive(Default)]
 pub struct TextureHeader {
     pub mip_texture_count: u32,
 }
@@ -452,6 +453,7 @@ impl Resource for TextureInfo {
 pub struct Model {
     pub lower: glm::Vec3,
     pub upper: glm::Vec3,
+    pub origin: glm::Vec3,
     pub head_nodes_index: [i32; MAX_MAP_HULLS],
     pub vis_leaves: i32,
     pub first_face: i32,
@@ -464,6 +466,7 @@ impl Model {
         return Model {
             lower: glm::vec3(0.0, 0.0, 0.0),
             upper: glm::vec3(0.0, 0.0, 0.0),
+            origin: glm::vec3(0.0, 0.0, 0.0),
             head_nodes_index: [0; MAX_MAP_HULLS],
             vis_leaves: 0,
             first_face: 0,
@@ -488,6 +491,11 @@ impl Resource for Model {
             reader.read_f32::<Self::T>().unwrap(),
             reader.read_f32::<Self::T>().unwrap(),
         );
+        let origin: glm::Vec3 = glm::vec3(
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>().unwrap(),
+        );
         let mut head_nodes_index: [i32; MAX_MAP_HULLS] = [0; MAX_MAP_HULLS];
         for i in 0..MAX_MAP_HULLS {
             match reader.read_i32::<Self::T>() {
@@ -501,6 +509,7 @@ impl Resource for Model {
         return Ok(Model {
             lower,
             upper,
+            origin,
             head_nodes_index,
             vis_leaves,
             first_face,

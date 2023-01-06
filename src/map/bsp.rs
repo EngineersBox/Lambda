@@ -109,7 +109,7 @@ pub struct BSP {
     pub wad_files: Vec<Wad>,
     pub decal_wads: Vec<Wad>,
     pub m_decals: Vec<Decal>,
-    pub vis_lists: Vec<BitSet<u8>>,
+    pub vis_lists: Vec<BitSet>,
     pub m_textures: Vec<MipmapTexture>,
     pub m_lightmaps: Vec<Image>,
     pub hull_0_clip_nodes: Vec<bsp30::ClipNode>,
@@ -150,15 +150,43 @@ impl BSP {
                 format!("Invalid BSP version {}, expected 30", header.version)
             ));
         }
+        let mut bsp: BSP = BSP {
+            header,
+            vertices: Vec::new(),
+            edges: Vec::new(),
+            surface_edges: Vec::new(),
+            nodes: Vec::new(),
+            leaves: Vec::new(),
+            mark_surfaces: Vec::new(),
+            planes: Vec::new(),
+            faces: Vec::new(),
+            clip_nodes: Vec::new(),
+            texture_header: Default::default(),
+            mip_textures: Vec::new(),
+            mip_texture_offsets: Vec::new(),
+            texture_infos: Vec::new(),
+            face_tex_coords: Vec::new(),
+            entities: Vec::new(),
+            brush_entities: Vec::new(),
+            special_entities: Vec::new(),
+            wad_files: Vec::new(),
+            decal_wads: Vec::new(),
+            m_decals: Vec::new(),
+            vis_lists: Vec::new(),
+            m_textures: Vec::new(),
+            m_lightmaps: Vec::new(),
+            hull_0_clip_nodes: Vec::new(),
+            models: Vec::new(),
+        };
         // Init and read BSP component vectors
         macro_rules! bsp_comp_init {
             ($name:ident,$lump_type:expr,$element_type:ty) => {
-                let mut $name: Vec<$element_type> = Vec::with_capacity(
+                bsp.$name = Vec::with_capacity(
                     header.lump[$lump_type as usize].length as usize / std::mem::size_of::<$element_type>()
                 );
                 reader.seek(SeekFrom::Start(header.lump[$lump_type as usize].offset as u64));
-                for _ in 0..$name.capacity() {
-                    $name.push(<$element_type>::from_reader(&mut reader)?);
+                for _ in 0..bsp.$name.capacity() {
+                    bsp.$name.push(<$element_type>::from_reader(&mut reader)?);
                 }
             }
         }
@@ -166,7 +194,7 @@ impl BSP {
         bsp_comp_init!(leaves, bsp30::LumpType::LumpLeaves, bsp30::Leaf);
         bsp_comp_init!(mark_surfaces, bsp30::LumpType::LumpMarkSurfaces, bsp30::MarkSurface);
         bsp_comp_init!(faces, bsp30::LumpType::LumpFaces, bsp30::Face);
-        bsp_comp_init!(clip_ndoes, bsp30::LumpType::LumpClipNodes, bsp30::ClipNode);
+        bsp_comp_init!(clip_nodes, bsp30::LumpType::LumpClipNodes, bsp30::ClipNode);
         bsp_comp_init!(surface_edges, bsp30::LumpType::LumpSurfaceEdges, bsp30::SurfaceEdge);
         bsp_comp_init!(edges, bsp30::LumpType::LumpEdges, bsp30::Edge);
         bsp_comp_init!(vertices, bsp30::LumpType::LumpVertexes, bsp30::Vertex);
@@ -177,26 +205,83 @@ impl BSP {
             entity_buffer.push(reader.read_u8().unwrap());
         }
         reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64));
-        let entities: Vec<Entity> = BSP::parse_entities(&String::from_utf8(entity_buffer).unwrap());
+        bsp.entities = BSP::parse_entities(&String::from_utf8(entity_buffer).unwrap());
         // Textures
-        let texture_infos: Vec<bsp30::TextureInfo> = Vec::with_capacity(header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
+        bsp.texture_infos = Vec::with_capacity(header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
         reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTexinfo as usize].offset as u64));
-        for _ in 0..texture_infos.capacity() {
-            texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader).unwrap());
+        for _ in 0..bsp.texture_infos.capacity() {
+            bsp.texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader).unwrap());
         }
         reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64));
-        let texture_header: bsp30::TextureHeader = bsp30::TextureHeader::from_reader(&mut reader).unwrap();
-        let mip_textures: Vec<bsp30::MipTex> = Vec::with_capacity(texture_header.mip_texture_count as usize);
-        let mip_texture_offsets: Vec<bsp30::MipTexOffset> = Vec::with_capacity(texture_header.mip_texture_count as usize);
-        for _ in 0..mip_texture_offsets.capacity() {
-            mip_texture_offsets.push(bsp30::MipTexOffset::from_reader(&mut reader).unwrap());
+        bsp.texture_header = bsp30::TextureHeader::from_reader(&mut reader).unwrap();
+        bsp.mip_textures = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
+        bsp.mip_texture_offsets = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
+        for _ in 0..bsp.mip_texture_offsets.capacity() {
+            bsp.mip_texture_offsets.push(bsp30::MipTexOffset::from_reader(&mut reader).unwrap());
         }
-        for i in 0..mip_textures.capacity() {
-            reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + mip_texture_offsets[i] as u64));
-            mip_textures[i] = bsp30::MipTex::from_reader(&mut reader).unwrap();
+        for i in 0..bsp.mip_textures.capacity() {
+            reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64));
+            bsp.mip_textures[i] = bsp30::MipTex::from_reader(&mut reader).unwrap();
         }
-        // TODO: Refactor to create BSP object with default field values and then use member
-        // methods on it.
+        bsp.load_textures(&mut reader);
+        // Lightmaps
+        if header.lump[bsp30::LumpType::LumpLighting as usize].length == 0 {
+            info!(&crate::LOGGER, "No lightmaps to load, skipping");
+        } else {
+            let p_lightmap_data: Vec<u8> = Vec::with_capacity(header.lump[bsp30::LumpType::LumpLighting as usize].length as usize);
+            reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpLighting as usize].offset as u64));
+            for _ in 0..p_lightmap_data.capacity() {
+                p_lightmap_data.push(reader.read_u8().unwrap());
+            }
+            bsp.load_light_maps(p_lightmap_data);
+        }
+        // Decals
+        bsp.load_decals();
+        // Visibility list
+        if header.lump[bsp30::LumpType::LumpVisibility as usize].length <= 0 {
+            info!(&crate::LOGGER, "No visibility lists to load, skipping");
+        } else {
+            let compressed_vis: Vec<u8> = Vec::with_capacity(header.lump[bsp30::LumpType::LumpVisibility as usize].length as usize);
+            reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpVisibility as usize].offset as u64));
+            for _ in 0..compressed_vis.capacity() {
+                compressed_vis.push(reader.read_u8().unwrap());
+            }
+            info!(&crate::LOGGER, "Decompressing visibility list");
+            let count: usize = bsp.count_vis_leaves(0);
+            bsp.vis_lists = Vec::with_capacity(count);
+            for i in 0..count {
+                if bsp.leaves[i + 1].vis_offset >= 0 {
+                    bsp.vis_lists[i] = bsp.decompress_vis(i + 1, compressed_vis);
+                }
+            }
+        }
+        // Close file here?
+        for i in 0..bsp.entities.len() {
+            let entity: &Entity = &bsp.entities[i];
+            if BSP::is_brush_entity(entity) {
+                bsp.brush_entities.push(i);
+                if let Some(sz_origin) = entity.find_property(&"origin".to_string()) {
+                    let i_model: usize = entity.find_property(&"model".to_string())
+                        .unwrap()
+                        .chars()
+                        .nth(1)
+                        .unwrap() as usize;
+                    let origin: glm::Vec3 = bsp.models[i_model].model.origin;
+                    macro_rules! scan {
+                        ($string:expr, $sep:expr, $( $x:ty ),+) => {{
+                            let mut iter = $string.split($sep);
+                            ($(iter.next().and_then(|word| word.parse::<$x>().ok()),)*)
+                        }}
+                    }
+                    let origin_points: (Option<f32>, Option<f32>, Option<f32>) = scan!(sz_origin, char::is_whitespace, f32, f32, f32);
+                    origin.x = origin_points.0.unwrap();
+                    origin.y = origin_points.1.unwrap();
+                    origin.z = origin_points.2.unwrap();
+                }
+            } else {
+                bsp.special_entities.push(i);
+            }
+        }
         return Ok();
     }
 
