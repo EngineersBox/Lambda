@@ -3,7 +3,7 @@ use std::io::{Result, Error, ErrorKind, BufReader, Read, Seek, SeekFrom};
 use std::fs::{File, OpenOptions};
 use bit_set::BitSet;
 use lazy_static::lazy_static;
-use byteorder::{ReadBytesExt};
+use byteorder::ReadBytesExt;
 
 use crate::map::bsp30::{self, TextureInfo};
 use crate::map::wad::{Wad, MipmapTexture};
@@ -282,7 +282,18 @@ impl BSP {
                 bsp.special_entities.push(i);
             }
         }
-        return Ok();
+        std_tools::partition(
+            &mut bsp.brush_entities,
+            |i: &usize| -> bool {
+            if let Some(sz_render_mode_1) = bsp.entities[*i].find_property(&"rendermode".to_string()) {
+                if sz_render_mode_1.parse::<usize>().unwrap() == bsp30::RenderMode::RenderModeTexture as usize {
+                    return true;
+                }
+            }
+            return false;
+        });
+        info!(&crate::LOGGER, "Finished loading BSP");
+        return Ok(bsp);
     }
 
     pub fn find_entity<'a>(&self, name: &String) -> Option<&'a Entity> {

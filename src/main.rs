@@ -17,6 +17,7 @@ extern crate slog_async;
 extern crate slog_json;
 extern crate lazy_static;
 extern crate arr_macro;
+extern crate std_tools;
 
 use glium::{glutin, Surface};
 pub(crate) use lazy_static::lazy_static;
