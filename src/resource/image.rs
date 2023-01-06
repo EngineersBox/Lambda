@@ -18,7 +18,8 @@ impl Image {
     }
 
     pub fn from_path(path: &String) -> Self {
-
+        // TODO: Implement this
+        return Image::new();
     }
 
 }
