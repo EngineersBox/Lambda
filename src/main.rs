@@ -4,6 +4,8 @@ mod resource;
 mod scene;
 mod logging;
 mod util;
+mod renderer;
+mod core;
 
 extern crate glium;
 extern crate glm;
@@ -18,6 +20,8 @@ extern crate slog_json;
 extern crate lazy_static;
 extern crate arr_macro;
 extern crate std_tools;
+extern crate imgui;
+extern crate imgui_glium_renderer;
 
 use glium::{glutin, Surface};
 pub(crate) use lazy_static::lazy_static;
@@ -37,7 +41,7 @@ fn render(display: &glium::Display) {
 
 fn main() {
     info!(&crate::LOGGER, "Configured logging");
-    let mut event_loop = glutin::event_loop::EventLoop::new();
+    let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new();
     let context_builder = glutin::ContextBuilder::new();
     let display = glium::Display::new(window_builder, context_builder, &event_loop).unwrap();

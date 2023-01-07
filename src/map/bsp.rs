@@ -622,7 +622,7 @@ impl BSP {
         let mut sub_models: Vec<bsp30::Model> = Vec::with_capacity(
             self.header.lump[bsp30::LumpType::LumpModels as usize].length as usize / std::mem::size_of::<bsp30::Model>()
         );
-        reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpModels as usize].offset as u64));
+        reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpModels as usize].offset as u64)).expect("Unable to seek to models lump in BSP file");
         for _ in 0..sub_models.capacity() {
             sub_models.push(bsp30::Model::from_reader(reader).unwrap());
         }
@@ -776,7 +776,8 @@ impl BSP {
         }
         return pvs;
     }
-    
+   
+    #[inline(always)]
     fn array_to_vec3(arr: [i16; 3]) -> glm::Vec3 {
         return glm::vec3(
             arr[0] as f32,

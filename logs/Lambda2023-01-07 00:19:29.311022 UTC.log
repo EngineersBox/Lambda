@@ -1,0 +1,2 @@
+{"msg":"Logging directory already exists, skipping","level":"INFO","ts":"2023-01-07T00:19:29.326885Z","thread-id":"ThreadId(1)"}
+{"msg":"Configured logging","level":"INFO","ts":"2023-01-07T00:19:29.327542Z"}
