@@ -226,7 +226,7 @@ impl BSP {
         debug!(&crate::LOGGER, "Read mip texture offsets");
         for i in 0..bsp.mip_textures.capacity() {
             reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64))?;
-            bsp.mip_textures[i] = bsp30::MipTex::from_reader(&mut reader).unwrap();
+            bsp.mip_textures.push(bsp30::MipTex::from_reader(&mut reader).unwrap());
         }
         debug!(&crate::LOGGER, "Read mip textures");
         bsp.load_textures(&mut reader);
@@ -403,7 +403,7 @@ impl BSP {
                 let mip_tex: &bsp30::MipTex = &self.mip_textures[i];
                 let data_size: usize = std::mem::size_of::<u8>() * (mip_tex.offsets[3] + (mip_tex.height / 8) * (mip_tex.width / 8) + 2 + 768) as usize;
                 let mut img_data: Vec<u8> = Vec::with_capacity(data_size);
-                reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + self.mip_texture_offsets[i] as u64));
+                reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + self.mip_texture_offsets[i] as u64)).expect("Unable to seek to textures lump offset for internal texture");
                 for _ in 0..data_size {
                     img_data.push(reader.read_u8().unwrap());
                 }

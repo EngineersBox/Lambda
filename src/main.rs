@@ -24,6 +24,8 @@ extern crate imgui;
 extern crate imgui_glium_renderer;
 extern crate image;
 
+use std::panic;
+
 use glium::{glutin, Surface};
 pub(crate) use lazy_static::lazy_static;
 use slog::Logger;
@@ -69,7 +71,37 @@ fn original_main() {
 
 fn main() {
     info!(&crate::LOGGER, "Configured Logging");
-    let bsp = map::bsp::BSP::from_file(&"maps/test2.bsp".to_string()).unwrap();
+    // NOTE: Temporary debugging panic logger
+    panic::set_hook(Box::new(|panic_info: &panic::PanicInfo| {
+        if let Some(location) = panic_info.location() {
+            if let Some(msg) = panic_info.payload().downcast_ref::<&str>() {
+                crit!(
+                    &crate::LOGGER,
+                    "[{}:{}:{}] Panic with payload: {:?}",
+                    location.file(),
+                    location.line(),
+                    location.column(),
+                    msg,
+                );
+                std::thread::sleep(std::time::Duration::from_millis(1000));
+                return;
+            }
+
+            crit!(
+                &crate::LOGGER,
+                "[{}:{}:{}] Panic with message: {}",
+                location.file(),
+                location.line(),
+                location.column(),
+                panic_info.to_string(),
+            );
+            std::thread::sleep(std::time::Duration::from_millis(1000));
+            return
+        }
+        crit!(&crate::LOGGER, "Panic at unknown location");
+        std::thread::sleep(std::time::Duration::from_millis(1000));
+    }));
+    let bsp = map::bsp::BSP::from_file(&"maps/test1.bsp".to_string()).unwrap();
     loop {};
 
 }
