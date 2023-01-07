@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+#[derive(Clone)]
 pub struct Entity {
     pub (crate) properties: HashMap<String, String>,
 }
@@ -8,31 +9,31 @@ impl Entity {
 
     pub fn new(properties_string: &String) -> Self {
         let mut pos: usize = 0;
-        let instance: Entity = Entity {
+        let mut instance: Entity = Entity {
             properties: HashMap::new(),
         };
         loop {
-            let read_quoted_string = || -> String {
-                pos += 1;
-                let end: usize = properties_string[pos..].find('"').unwrap();
-                let quote: String = properties_string[pos..(end - pos)].to_string();
-                pos = end + 1;
-                return quote;
-            };
             if let Some(next_pos) = properties_string[pos..].find('"') {
                 pos = next_pos;
             } else {
                 break;
             }
-            let name: String = read_quoted_string();
+            pos += 1;
+            let mut end: usize = properties_string[pos..].find('"').unwrap();
+            let name: String = properties_string[pos..(end - pos)].to_string();
+            pos = end + 1;
             pos = properties_string[pos..].find('"').unwrap();
-            let value: String = read_quoted_string();
+
+            pos += 1;
+            end = properties_string[pos..].find('"').unwrap();
+            let value: String = properties_string[pos..(end - pos)].to_string();
+            pos = end + 1;
             instance.properties.insert(name, value);
         }
         return instance;
     }
 
-    pub fn find_property<'a>(&self, name: &String) -> Option<&'a String> {
+    pub fn find_property(&self, name: &String) -> Option<&String> {
         return self.properties.get(name);
     }
 

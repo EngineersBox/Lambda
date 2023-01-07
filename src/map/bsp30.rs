@@ -117,8 +117,8 @@ impl Resource for Header {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let version: i32 = reader.read_i32::<Self::T>().unwrap();
-        let lump: Vec<Lump> = Vec::with_capacity(LumpType::HeaderLumps as usize);
-        for i in 0..LumpType::HeaderLumps as usize {
+        let mut lump: Vec<Lump> = Vec::with_capacity(LumpType::HeaderLumps as usize);
+        for _ in 0..LumpType::HeaderLumps as usize {
             lump.push(Lump::from_reader(reader).unwrap());
         }
         return Ok(Header {

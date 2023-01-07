@@ -22,7 +22,7 @@ impl Resource for WadHeader {
 
     type T = BigEndian;
 
-    fn from_reader(mut reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> {
+    fn from_reader(reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> {
         let magic: [u8; 4] = [
             reader.read_u8().unwrap(),
             reader.read_u8().unwrap(),
@@ -55,7 +55,7 @@ impl Resource for WadDirEntry {
 
     type T = BigEndian;
 
-    fn from_reader(mut reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> {
+    fn from_reader(reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> {
         let n_file_pos: i32 = reader.read_i32::<Self::T>().unwrap();
         let n_disk_size: i32 = reader.read_i32::<Self::T>().unwrap();
         let n_size: u32 = reader.read_u32::<Self::T>().unwrap();
@@ -129,7 +129,7 @@ impl Wad {
         return wad;
     }
 
-    pub fn load_texture(&self, name: &String) -> Option<MipmapTexture> {
+    pub fn load_texture(&mut self, name: &String) -> Option<MipmapTexture> {
         let raw_texture: Vec<u8> = self.get_texture(name);
         if raw_texture.is_empty() {
             return None;
@@ -137,7 +137,7 @@ impl Wad {
         return Some(Self::create_mip_texture(&raw_texture));
     }
 
-    pub fn load_decal_texture(&self, name: &String) -> Option<MipmapTexture> {
+    pub fn load_decal_texture(&mut self, name: &String) -> Option<MipmapTexture> {
         let raw_texture: Vec<u8> = self.get_texture(name);
         if raw_texture.is_empty() {
             return None;
@@ -167,7 +167,7 @@ impl Wad {
         }
     }
 
-    fn get_texture(&self, name: &String) -> Vec<u8> {
+    fn get_texture(&mut self, name: &String) -> Vec<u8> {
         let option_entry: Option<&WadDirEntry> = self.dir_entries.get(name);
         if let Some(entry) = option_entry {
             if entry.compressed {
@@ -183,15 +183,15 @@ impl Wad {
     }
     
     pub fn create_mip_texture(raw_texture: &Vec<u8>) -> MipmapTexture {
-        let reader: BufReader<&[u8]> = BufReader::new(raw_texture.as_slice());
+        let mut reader: BufReader<&[u8]> = BufReader::new(raw_texture.as_slice());
         let raw_mip_tex: bsp30::MipTex = bsp30::MipTex::from_reader(&mut reader).unwrap();
         let mut width: u32 = raw_mip_tex.width;
         let mut height: u32 = raw_mip_tex.height;
         let palette_offset: usize = raw_mip_tex.offsets[3] as usize + (width / 8) as usize * (height / 8) as usize + 2;
-        let mip_tex: MipmapTexture = MipmapTexture::new();
+        let mut mip_tex: MipmapTexture = MipmapTexture::new();
         for level in 0..bsp30::MIP_LEVELS {
             let pixel_index: usize = raw_mip_tex.offsets[level] as usize;
-            let img: Image = mip_tex.img[level];
+            let mut img: &mut Image = &mut mip_tex.img[level];
             img.channels = 4;
             img.width = width as usize;
             img.height = height as usize;
@@ -211,16 +211,16 @@ impl Wad {
     } 
 
     fn create_decal_texture(&self, raw_texture: &Vec<u8>) -> MipmapTexture {
-        let reader: BufReader<&[u8]> = BufReader::new(raw_texture.as_slice());
+        let mut reader: BufReader<&[u8]> = BufReader::new(raw_texture.as_slice());
         let raw_mip_tex: bsp30::MipTex = bsp30::MipTex::from_reader(&mut reader).unwrap();
         let mut width: u32 = raw_mip_tex.width;
         let mut height: u32 = raw_mip_tex.height;
         let palette_offset: usize = raw_mip_tex.offsets[3] as usize + (width / 8) as usize * (height / 8) as usize + 2;
-        let mip_tex: MipmapTexture = MipmapTexture::new();
+        let mut mip_tex: MipmapTexture = MipmapTexture::new();
         let colour: usize = palette_offset + 255 * 3;
         for level in 0..bsp30::MIP_LEVELS {
             let pixel_index: usize = raw_mip_tex.offsets[level] as usize;
-            let img: Image = mip_tex.img[level];
+            let mut img: &mut Image = &mut mip_tex.img[level];
             img.channels = 4;
             img.width = width as usize;
             img.height = height as usize;
@@ -242,7 +242,7 @@ impl Wad {
 }
 
 fn apply_alpha_sections(p_tex: &mut Image) {
-    let p_rgb_texture: Vec<u8> = Vec::with_capacity(p_tex.width * p_tex.height * 4);
+    let mut p_rgb_texture: Vec<u8> = Vec::with_capacity(p_tex.width * p_tex.height * 4);
     for i in 0..(p_tex.width * p_tex.height) {
         p_rgb_texture[i * 4 + 2] = 255;
     }
@@ -257,7 +257,7 @@ fn apply_alpha_sections(p_tex: &mut Image) {
             p_tex.data[index * 4 + 2] = 0;
             p_tex.data[index * 4 + 3] = 0;
             let mut count: usize = 0;
-            let rgb_colour_sum: (usize, usize, usize) = (0, 0, 0);
+            let mut rgb_colour_sum: (usize, usize, usize) = (0, 0, 0);
 
             macro_rules! corner_pixel {
                 ($pixel_index_expr:expr) => {

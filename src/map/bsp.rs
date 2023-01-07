@@ -182,9 +182,9 @@ impl BSP {
         macro_rules! bsp_comp_init {
             ($name:ident,$lump_type:expr,$element_type:ty) => {
                 bsp.$name = Vec::with_capacity(
-                    header.lump[$lump_type as usize].length as usize / std::mem::size_of::<$element_type>()
+                    bsp.header.lump[$lump_type as usize].length as usize / std::mem::size_of::<$element_type>()
                 );
-                reader.seek(SeekFrom::Start(header.lump[$lump_type as usize].offset as u64));
+                reader.seek(SeekFrom::Start(bsp.header.lump[$lump_type as usize].offset as u64));
                 for _ in 0..bsp.$name.capacity() {
                     bsp.$name.push(<$element_type>::from_reader(&mut reader)?);
                 }
@@ -200,19 +200,19 @@ impl BSP {
         bsp_comp_init!(vertices, bsp30::LumpType::LumpVertexes, bsp30::Vertex);
         bsp_comp_init!(planes, bsp30::LumpType::LumpPlanes, bsp30::Plane);
         // Read and parse entities
-        let mut entity_buffer: Vec<u8> = Vec::with_capacity(header.lump[bsp30::LumpType::LumpEntities as usize].length as usize);
+        let mut entity_buffer: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].length as usize);
         for _ in 0..entity_buffer.capacity() {
             entity_buffer.push(reader.read_u8().unwrap());
         }
-        reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64));
+        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64));
         bsp.entities = BSP::parse_entities(&String::from_utf8(entity_buffer).unwrap());
         // Textures
-        bsp.texture_infos = Vec::with_capacity(header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
-        reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTexinfo as usize].offset as u64));
+        bsp.texture_infos = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
+        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].offset as u64));
         for _ in 0..bsp.texture_infos.capacity() {
             bsp.texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader).unwrap());
         }
-        reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64));
+        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64));
         bsp.texture_header = bsp30::TextureHeader::from_reader(&mut reader).unwrap();
         bsp.mip_textures = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
         bsp.mip_texture_offsets = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
@@ -220,16 +220,16 @@ impl BSP {
             bsp.mip_texture_offsets.push(bsp30::MipTexOffset::from_reader(&mut reader).unwrap());
         }
         for i in 0..bsp.mip_textures.capacity() {
-            reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64));
+            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64));
             bsp.mip_textures[i] = bsp30::MipTex::from_reader(&mut reader).unwrap();
         }
         bsp.load_textures(&mut reader);
         // Lightmaps
-        if header.lump[bsp30::LumpType::LumpLighting as usize].length == 0 {
+        if bsp.header.lump[bsp30::LumpType::LumpLighting as usize].length == 0 {
             info!(&crate::LOGGER, "No lightmaps to load, skipping");
         } else {
-            let mut p_lightmap_data: Vec<u8> = Vec::with_capacity(header.lump[bsp30::LumpType::LumpLighting as usize].length as usize);
-            reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpLighting as usize].offset as u64));
+            let mut p_lightmap_data: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpLighting as usize].length as usize);
+            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpLighting as usize].offset as u64));
             for _ in 0..p_lightmap_data.capacity() {
                 p_lightmap_data.push(reader.read_u8().unwrap());
             }
@@ -238,11 +238,11 @@ impl BSP {
         // Decals
         bsp.load_decals();
         // Visibility list
-        if header.lump[bsp30::LumpType::LumpVisibility as usize].length <= 0 {
+        if bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].length <= 0 {
             info!(&crate::LOGGER, "No visibility lists to load, skipping");
         } else {
-            let mut compressed_vis: Vec<u8> = Vec::with_capacity(header.lump[bsp30::LumpType::LumpVisibility as usize].length as usize);
-            reader.seek(SeekFrom::Start(header.lump[bsp30::LumpType::LumpVisibility as usize].offset as u64));
+            let mut compressed_vis: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].length as usize);
+            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].offset as u64));
             for _ in 0..compressed_vis.capacity() {
                 compressed_vis.push(reader.read_u8().unwrap());
             }
@@ -251,7 +251,7 @@ impl BSP {
             bsp.vis_lists = Vec::with_capacity(count);
             for i in 0..count {
                 if bsp.leaves[i + 1].vis_offset >= 0 {
-                    bsp.vis_lists[i] = bsp.decompress_vis(i + 1, compressed_vis);
+                    bsp.vis_lists[i] = bsp.decompress_vis(i + 1, &compressed_vis);
                 }
             }
         }
@@ -296,10 +296,10 @@ impl BSP {
         return Ok(bsp);
     }
 
-    pub fn find_entity(&self, name: &String) -> Option<&Entity> {
-        for entity in self.entities.iter() {
+    pub fn find_entity<'a>(entities: &'a Vec<Entity>, name: String) -> Option<&Entity> {
+        for entity in entities.iter() {
             if let Some(classname) = entity.find_property(&"classname".to_string()) {
-                if classname == name {
+                if *classname == name {
                     return Some(entity);
                 }
             }
@@ -307,11 +307,11 @@ impl BSP {
         return None;
     }
     
-    pub fn find_entities(&mut self, name: &String) -> Vec<&mut Entity> {
-        let mut result: Vec<&mut Entity> = Vec::new();
-        for entity in self.entities.iter_mut() {
+    pub fn find_entities<'a>(entities: &'a Vec<Entity>, name: String) -> Vec<&Entity> {
+        let mut result: Vec<&Entity> = Vec::new();
+        for entity in entities.iter() {
             if let Some(classname) = entity.find_property(&"classname".to_string()) {
-                if classname == name {
+                if *classname == name {
                     result.push(entity);
                 }
             }
@@ -320,7 +320,7 @@ impl BSP {
     }
 
     pub fn load_skybox(&self) -> Option<[Image; 6]> {
-        let world_spawn: Option<&Entity> = self.find_entity(&"world_spawn".to_string());
+        let world_spawn: Option<&Entity> = BSP::find_entity(&self.entities, "world_spawn".to_string());
         let skyname: Option<&String> = world_spawn?.find_property(&"skyname".to_string());
         let mut result: Vec<Image> = Vec::with_capacity(6);
         for i in 0..6 {
@@ -335,10 +335,11 @@ impl BSP {
         return result.try_into().ok();
     }
 
-    pub (crate) fn load_wad_files(&mut self, wad_str: &String) {
+    pub (crate) fn load_wad_files(wad_str: &String) -> Vec<Wad> {
         let wad_string: String = wad_str.replace("\\", "/");
         let mut wad_count: usize = 0;
         let mut pos: usize = 0;
+        let mut wad_files: Vec<Wad> = Vec::new();
         loop {
             pos += 1;
             let next: Option<usize> = wad_string[pos..].find(';');
@@ -351,12 +352,13 @@ impl BSP {
                     path = path[(it2 + 1)..].to_string();
                 }
             }
-            self.wad_files.push(Wad::new((WAD_DIR.clone() + path.as_str()).as_str()));
+            wad_files.push(Wad::new((WAD_DIR.clone() + path.as_str()).as_str()));
             wad_count += 1;
             info!(&crate::LOGGER, "Loaded {}", wad_count);
             pos = next.unwrap();
         }
         info!(&crate::LOGGER, "Loaded {} WADs", wad_count);
+        return wad_files;
     }
 
     pub (crate) fn unload_wad_files(&mut self) {
@@ -365,31 +367,33 @@ impl BSP {
 
     pub (crate) fn load_textures(&mut self, reader: &mut BufReader<File>) {
         info!(&crate::LOGGER, "Loading texture WADs...");
-        if let Some(world_spawn) = self.find_entity(&"world_spawn".to_string()) {
+        if let Some(world_spawn) = BSP::find_entity(&self.entities, "world_spawn".to_string()) {
             if let Some(wad) = world_spawn.find_property(&String::from("wad")) {
-                self.load_wad_files(wad);
+                self.wad_files.append(&mut BSP::load_wad_files(wad));
             }
         }
         info!(&crate::LOGGER, "Loading textures...");
         self.m_textures.resize_with(self.texture_header.mip_texture_count as usize, || MipmapTexture::new());
         let mut errors: usize = 0;
         for i in 0..self.texture_header.mip_texture_count as usize {
-            let mip_tex: &bsp30::MipTex = &self.mip_textures[i];
-            if mip_tex.offsets[0] == 0 {
+            if self.mip_textures[i].offsets[0] == 0 {
                 // External texture
-                if let Some(tex) = self.load_texture_from_wads(&String::from_utf8_lossy(&mip_tex.name).to_string()) {
+                if let Some(tex) = self.load_texture_from_wads(&String::from_utf8_lossy(&self.mip_textures[i].name).to_string()) {
                     self.m_textures[i] = tex;
                 }  else {
-                    error!(&crate::LOGGER, "Failed to load texture {} from WAD files", String::from_utf8_lossy(&mip_tex.name));
+                    error!(&crate::LOGGER, "Failed to load texture {} from WAD files", String::from_utf8_lossy(&self.mip_textures[i].name));
                     errors += 1;
                     continue;
                 }
             } else {
                 // Internal texture
+                let mip_tex: &bsp30::MipTex = &self.mip_textures[i];
                 let data_size: usize = std::mem::size_of::<u8>() * (mip_tex.offsets[3] + (mip_tex.height / 8) * (mip_tex.width / 8) + 2 + 768) as usize;
-                let mut img_data: Vec<u8> = vec![0; data_size];
+                let mut img_data: Vec<u8> = Vec::with_capacity(data_size);
                 reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + self.mip_texture_offsets[i] as u64));
-                reader.read_exact(&mut img_data);
+                for _ in 0..data_size {
+                    img_data.push(reader.read_u8().unwrap());
+                }
                 self.m_textures[i] = Wad::create_mip_texture(&img_data);
             }
         }
@@ -426,7 +430,7 @@ impl BSP {
     }
 
     pub (crate) fn load_texture_from_wads(&mut self, name: &String) -> Option<MipmapTexture> {
-        for wad in self.wad_files.iter() {
+        for wad in self.wad_files.iter_mut() {
             if let Some(p_mipmap_tex) = wad.load_texture(name) {
                 return Some(p_mipmap_tex);
             }
@@ -434,8 +438,8 @@ impl BSP {
         return None;
     }
 
-    pub (crate) fn load_decal_texture(&mut self, name: &String) -> Option<MipmapTexture> {
-        for decal_wad in self.decal_wads.iter() {
+    pub (crate) fn load_decal_texture(decal_wads: &mut Vec<Wad>, name: &String) -> Option<MipmapTexture> {
+        for decal_wad in decal_wads.iter_mut() {
             if let Some(p_mipmap_tex) = decal_wad.load_texture(name) {
                 return Some(p_mipmap_tex);
             }
@@ -446,20 +450,22 @@ impl BSP {
     pub (crate) fn load_decals(&mut self) {
         self.decal_wads.push(Wad::new((WAD_DIR.clone() + "valve/decals.wad").as_str()));
         self.decal_wads.push(Wad::new((WAD_DIR.clone() + "cstrike/decals.wad").as_str()));
-        let mut info_decals: Vec<&mut Entity> = self.find_entities(&"infodecal".to_string());
+        let info_decals: Vec<&Entity> = BSP::find_entities(&self.entities, "infodecal".to_string()).clone();
         if info_decals.is_empty() {
             info!(&crate::LOGGER, "No decals to load, skipping");
             return;
         }
         let mut loaded_tex: HashMap<String, usize> = HashMap::new();
-        for info_decal in info_decals.iter() {
+        let mut new_m_textures: Vec<MipmapTexture> = Vec::new();
+        let mut new_m_decals: Vec<Decal> = Vec::new();
+        for info_decal in info_decals.iter().copied() {
             let origin_str: Option<&String> = info_decal.find_property(&"origin".to_string());
             if origin_str.is_none() {
                 continue;
             }
             let split_origin: Vec<&str> = origin_str.unwrap().split(" ").collect();
             if split_origin.len() != 3 {
-                error!(&crate::LOGGER, "Expected 3D origin, got {}D, skipping", split_origin.len());
+                error!(&crate::LOGGER, "Expected 3D origin, got {}, skipping", split_origin.len());
                 continue;
             }
             let origin: glm::Vec3 = glm::vec3(
@@ -467,17 +473,17 @@ impl BSP {
                 split_origin[1].parse::<f32>().unwrap(),
                 split_origin[2].parse::<f32>().unwrap(),
             );
-            let leaf = self.find_leaf(origin, 0);
+            let leaf: Option<i16> = self.find_leaf(origin, 0);
             if leaf.is_none() {
                 error!(&crate::LOGGER, "Cannot find decal leaf, skipping");
                 continue;
             }
-            let current_leaf: Option<&mut bsp30::Leaf> = self.leaves.get_mut(leaf.unwrap() as usize);
+            let current_leaf: Option<&bsp30::Leaf> = self.leaves.get(leaf.unwrap() as usize);
             if current_leaf.is_none() {
                 error!(&crate::LOGGER, "Cannot find leaf, skipping");
                 continue;
             }
-            let current_leaf_value: &mut bsp30::Leaf = current_leaf.unwrap();
+            let current_leaf_value: &bsp30::Leaf = current_leaf.unwrap();
             for j in 0..current_leaf_value.mark_surface_count as usize {
                 let face: &bsp30::Face = &self.faces[self.mark_surfaces[current_leaf_value.first_mark_surface as usize + j] as usize];
                 let normal: glm::Vec3 = self.planes[face.plane_index as usize].normal;
@@ -499,20 +505,21 @@ impl BSP {
                 let it: Option<&usize> = loaded_tex.get(tex_name.unwrap());
                 let mut it_val: usize = 0;
                 if it.is_none() {
-                    if self.load_decal_texture(&tex_name.unwrap()).is_none() {
+                    let loaded_decal_texture: Option<MipmapTexture> = BSP::load_decal_texture(&mut self.decal_wads, &tex_name.unwrap());
+                    if loaded_decal_texture.is_none() {
                         error!(&crate::LOGGER, "Unable to load mipmap texture for {}", &tex_name.unwrap());
                         break;
                     }
                     it_val = self.m_textures.len();
                     loaded_tex.insert(tex_name.unwrap().clone(), self.m_textures.len());
-                    self.m_textures.push(self.load_decal_texture(&tex_name.unwrap()).unwrap());
+                    new_m_textures.push(loaded_decal_texture.unwrap());
                 }
                 let img_0: &Image = &self.m_textures[it_val].img[0];
                 let h2: f32 = img_0.height as f32 / 2.0;
                 let w2: f32 = img_0.width as f32 / 2.0;
                 let s: glm::Vec3 = self.texture_infos[face.texture_info as usize].s;
                 let t: glm::Vec3 = self.texture_infos[face.texture_info as usize].t;
-                self.m_decals.push(Decal {
+                new_m_decals.push(Decal {
                     normal,
                     tex_index: it_val as u32,
                     vec: [
@@ -525,6 +532,8 @@ impl BSP {
                 break;
             }
         }
+        self.m_textures.append(&mut new_m_textures);
+        self.m_decals.append(&mut new_m_decals);
         info!(&crate::LOGGER, "Loaded {} decals, {} decal textures", self.m_decals.len(), loaded_tex.len());
     }
 
@@ -590,7 +599,7 @@ impl BSP {
                 self.face_tex_coords[i].lightmap_coords[j].x = f_lightmap_u / n_width as f32;
                 self.face_tex_coords[i].lightmap_coords[j].y = f_lightmap_v / n_height as f32;
             }
-            let mut image: Image = Image {
+            let image: Image = Image {
                 channels: 3,
                 width: n_width as usize,
                 height: n_height as usize,
@@ -686,7 +695,8 @@ impl BSP {
             if i != 0 {
                 self.models.push(self.models.last().unwrap().clone())
             }
-            let mut model: &mut Model = &mut self.models[self.models.len() - 1];
+            let index: usize = self.models.len() - 1;
+            let mut model: &mut Model = &mut self.models[index];
             model.model = sub_models[i];
         }
         todo!()
@@ -712,7 +722,7 @@ impl BSP {
     }
 
     pub (crate) fn parse_entities(entities_string: &String) -> Vec<Entity> {
-        let entities: Vec<Entity> = Vec::new();
+        let mut entities: Vec<Entity> = Vec::new();
         let mut pos: usize = 0;
         loop {
             pos = match entities_string[pos..].find('{') {
@@ -744,7 +754,7 @@ impl BSP {
         return left_node_count + right_node_count;
     }
 
-    pub (crate) fn decompress_vis(&self, leaf: usize, compresed_vis: Vec<u8>) -> BitSet {
+    pub (crate) fn decompress_vis(&self, leaf: usize, compresed_vis: &Vec<u8>) -> BitSet {
         let mut pvs: BitSet = BitSet::new();
         pvs.reserve_len(self.leaves.len() - 1);
         let mut read: usize = self.leaves[leaf].vis_offset as usize;
@@ -774,7 +784,7 @@ impl BSP {
         );
     }
 
-    pub (crate) fn find_leaf(&mut self, pos: glm::Vec3, node: usize) -> Option<i16> {
+    pub (crate) fn find_leaf(&self, pos: glm::Vec3, node: usize) -> Option<i16> {
         for child_index in self.nodes[node].child_index {
             if child_index >= 0 && point_in_box(
                 pos,
