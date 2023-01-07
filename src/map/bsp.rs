@@ -184,7 +184,7 @@ impl BSP {
                 bsp.$name = Vec::with_capacity(
                     bsp.header.lump[$lump_type as usize].length as usize / std::mem::size_of::<$element_type>()
                 );
-                reader.seek(SeekFrom::Start(bsp.header.lump[$lump_type as usize].offset as u64));
+                reader.seek(SeekFrom::Start(bsp.header.lump[$lump_type as usize].offset as u64))?;
                 for _ in 0..bsp.$name.capacity() {
                     bsp.$name.push(<$element_type>::from_reader(&mut reader)?);
                 }
@@ -204,15 +204,15 @@ impl BSP {
         for _ in 0..entity_buffer.capacity() {
             entity_buffer.push(reader.read_u8().unwrap());
         }
-        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64));
+        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64))?;
         bsp.entities = BSP::parse_entities(&String::from_utf8(entity_buffer).unwrap());
         // Textures
         bsp.texture_infos = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
-        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].offset as u64));
+        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].offset as u64))?;
         for _ in 0..bsp.texture_infos.capacity() {
             bsp.texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader).unwrap());
         }
-        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64));
+        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64))?;
         bsp.texture_header = bsp30::TextureHeader::from_reader(&mut reader).unwrap();
         bsp.mip_textures = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
         bsp.mip_texture_offsets = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
@@ -220,7 +220,7 @@ impl BSP {
             bsp.mip_texture_offsets.push(bsp30::MipTexOffset::from_reader(&mut reader).unwrap());
         }
         for i in 0..bsp.mip_textures.capacity() {
-            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64));
+            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64))?;
             bsp.mip_textures[i] = bsp30::MipTex::from_reader(&mut reader).unwrap();
         }
         bsp.load_textures(&mut reader);
@@ -229,7 +229,7 @@ impl BSP {
             info!(&crate::LOGGER, "No lightmaps to load, skipping");
         } else {
             let mut p_lightmap_data: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpLighting as usize].length as usize);
-            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpLighting as usize].offset as u64));
+            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpLighting as usize].offset as u64))?;
             for _ in 0..p_lightmap_data.capacity() {
                 p_lightmap_data.push(reader.read_u8().unwrap());
             }
@@ -242,7 +242,7 @@ impl BSP {
             info!(&crate::LOGGER, "No visibility lists to load, skipping");
         } else {
             let mut compressed_vis: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].length as usize);
-            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].offset as u64));
+            reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].offset as u64))?;
             for _ in 0..compressed_vis.capacity() {
                 compressed_vis.push(reader.read_u8().unwrap());
             }
@@ -255,7 +255,8 @@ impl BSP {
                 }
             }
         }
-        // Close file here?
+        // Close file through reader
+        std::mem::drop(reader);
         for i in 0..bsp.entities.len() {
             let entity: &Entity = &bsp.entities[i];
             if BSP::is_brush_entity(entity) {
