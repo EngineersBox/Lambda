@@ -353,7 +353,7 @@ impl Resource for SurfaceEdge {
 
 }
 
-#[derive(Default)]
+#[derive(Debug,Default)]
 pub struct TextureHeader {
     pub mip_texture_count: u32,
 }

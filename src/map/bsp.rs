@@ -206,24 +206,31 @@ impl BSP {
             entity_buffer.push(reader.read_u8().unwrap());
         }
         bsp.entities = BSP::parse_entities(&String::from_utf8(entity_buffer).unwrap());
+        debug!(&crate::LOGGER, "Parsed entities");
         // Textures
         bsp.texture_infos = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
         reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].offset as u64))?;
         for _ in 0..bsp.texture_infos.capacity() {
             bsp.texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader).unwrap());
         }
+        debug!(&crate::LOGGER, "Read texture infos");
         reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64))?;
         bsp.texture_header = bsp30::TextureHeader::from_reader(&mut reader).unwrap();
+        println!("Texture header: {:?}", bsp.texture_header);
+        debug!(&crate::LOGGER, "Read texture header");
         bsp.mip_textures = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
         bsp.mip_texture_offsets = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
         for _ in 0..bsp.mip_texture_offsets.capacity() {
             bsp.mip_texture_offsets.push(bsp30::MipTexOffset::from_reader(&mut reader).unwrap());
         }
+        debug!(&crate::LOGGER, "Read mip texture offsets");
         for i in 0..bsp.mip_textures.capacity() {
             reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64))?;
             bsp.mip_textures[i] = bsp30::MipTex::from_reader(&mut reader).unwrap();
         }
+        debug!(&crate::LOGGER, "Read mip textures");
         bsp.load_textures(&mut reader);
+        debug!(&crate::LOGGER, "Loaded textures");
         // Lightmaps
         if bsp.header.lump[bsp30::LumpType::LumpLighting as usize].length == 0 {
             info!(&crate::LOGGER, "No lightmaps to load, skipping");
@@ -234,9 +241,11 @@ impl BSP {
                 p_lightmap_data.push(reader.read_u8().unwrap());
             }
             bsp.load_light_maps(p_lightmap_data);
+            debug!(&crate::LOGGER, "Loaded lightmaps")
         }
         // Decals
         bsp.load_decals();
+        debug!(&crate::LOGGER, "Loaded decals");
         // Visibility list
         if bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].length <= 0 {
             info!(&crate::LOGGER, "No visibility lists to load, skipping");
@@ -254,9 +263,11 @@ impl BSP {
                     bsp.vis_lists[i] = bsp.decompress_vis(i + 1, &compressed_vis);
                 }
             }
+            debug!(&crate::LOGGER, "Loaded visibility list");
         }
         // Close file through reader
         std::mem::drop(reader);
+        debug!(&crate::LOGGER, "Dropped file");
         for i in 0..bsp.entities.len() {
             let entity: &Entity = &bsp.entities[i];
             if BSP::is_brush_entity(entity) {
@@ -283,6 +294,7 @@ impl BSP {
                 bsp.special_entities.push(i);
             }
         }
+        debug!(&crate::LOGGER, "Loaded brush and special entities");
         std_tools::partition(
             &mut bsp.brush_entities,
             |i: &usize| -> bool {
@@ -723,10 +735,11 @@ impl BSP {
     }
 
     pub (crate) fn parse_entities(entities_string: &String) -> Vec<Entity> {
+        trace!(&crate::LOGGER, "Parsing entities string: {}", entities_string);
         let mut entities: Vec<Entity> = Vec::new();
         let mut pos: usize = 0;
         loop {
-            pos = match entities_string[pos..].find('{') {
+            pos += match entities_string[pos..].find('{') {
                 Some(new_pos) => new_pos,
                 None => break,
             };
@@ -737,8 +750,8 @@ impl BSP {
                     continue;
                 },
             };
-            entities.push(Entity::new(&entities_string[(pos + 1)..(end - pos - 1)].to_string()));
-            pos = end + 1;
+            entities.push(Entity::new(&entities_string[(pos + 1)..(pos + end - 1)].to_string()));
+            pos += end + 1;
         }
         return entities;
     }
