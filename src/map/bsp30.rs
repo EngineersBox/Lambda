@@ -1,5 +1,5 @@
 use std::io::{Result, Error, ErrorKind, BufReader};
-use byteorder::{BigEndian, ReadBytesExt};
+use byteorder::{LittleEndian, ReadBytesExt};
 use crate::resource::resource::{Resource, read_char_array};
 
 // ==== BSP FORMAT LAYOUT ====
@@ -86,6 +86,7 @@ pub enum RenderMode {
     RenderModeAdditive = 5,
 }
 
+#[derive(Debug)]
 pub struct Lump {
     pub offset: i32,
     pub length: i32,
@@ -93,7 +94,7 @@ pub struct Lump {
 
 impl Resource for Lump {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let offset: i32 = reader.read_i32::<Self::T>().unwrap();
@@ -106,19 +107,20 @@ impl Resource for Lump {
 
 }
 
+#[derive(Debug)]
 pub struct Header {
     pub version: i32,
-    pub lump: [Lump; LumpType::HeaderLumps as usize],
+    pub lump: [Lump; LumpType::HeaderLumps as usize + 1],
 }
 
 impl Resource for Header {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let version: i32 = reader.read_i32::<Self::T>().unwrap();
-        let mut lump: Vec<Lump> = Vec::with_capacity(LumpType::HeaderLumps as usize);
-        for _ in 0..LumpType::HeaderLumps as usize {
+        let mut lump: Vec<Lump> = Vec::with_capacity(LumpType::HeaderLumps as usize + 1);
+        for _ in 0..(LumpType::HeaderLumps as usize + 1) {
             lump.push(Lump::from_reader(reader).unwrap());
         }
         return Ok(Header {
@@ -140,7 +142,7 @@ pub struct Node {
 
 impl Resource for Node {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let plane_index: u32 = reader.read_u32::<Self::T>().unwrap();
@@ -184,7 +186,7 @@ pub struct Leaf {
 
 impl Resource for Leaf {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let content: i32 = reader.read_i32::<Self::T>().unwrap();
@@ -224,7 +226,7 @@ pub type MarkSurface = u16;
 
 impl Resource for MarkSurface {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let mark_surface: MarkSurface = reader.read_u16::<Self::T>().unwrap() as MarkSurface;
@@ -242,7 +244,7 @@ pub struct Plane {
 
 impl Resource for Plane {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let normal: glm::Vec3 = glm::vec3(
@@ -265,7 +267,7 @@ pub type Vertex = glm::Vec3;
 
 impl Resource for Vertex {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let vertex: glm::Vec3 = glm::vec3(
@@ -284,7 +286,7 @@ pub struct Edge {
 
 impl Resource for Edge {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let vertex_index: [u16; 2] = [
@@ -310,7 +312,7 @@ pub struct Face {
 
 impl Resource for Face {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let plane_index: u16 = reader.read_u16::<Self::T>().unwrap();
@@ -342,7 +344,7 @@ pub type SurfaceEdge = i32;
 
 impl Resource for SurfaceEdge {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let surface_edge: SurfaceEdge = reader.read_i32::<Self::T>().unwrap() as SurfaceEdge;
@@ -358,7 +360,7 @@ pub struct TextureHeader {
 
 impl Resource for TextureHeader {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let mip_texture_count: u32 = reader.read_u32::<Self::T>().unwrap();
@@ -383,7 +385,7 @@ pub struct MipTex {
 
 impl Resource for MipTex {
    
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let mut name: [u8; MAX_TEXTURE_NAME] = [0; MAX_TEXTURE_NAME];
@@ -420,7 +422,7 @@ pub struct TextureInfo {
 
 impl Resource for TextureInfo {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let s: glm::Vec3 = glm::vec3(
@@ -478,7 +480,7 @@ impl Model {
 
 impl Resource for Model {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let lower: glm::Vec3 = glm::vec3(
@@ -527,7 +529,7 @@ pub struct ClipNode {
 
 impl Resource for ClipNode {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let plane_index: i32 = reader.read_i32::<Self::T>().unwrap();

@@ -201,10 +201,10 @@ impl BSP {
         bsp_comp_init!(planes, bsp30::LumpType::LumpPlanes, bsp30::Plane);
         // Read and parse entities
         let mut entity_buffer: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].length as usize);
+        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64))?;
         for _ in 0..entity_buffer.capacity() {
             entity_buffer.push(reader.read_u8().unwrap());
         }
-        reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64))?;
         bsp.entities = BSP::parse_entities(&String::from_utf8(entity_buffer).unwrap());
         // Textures
         bsp.texture_infos = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());

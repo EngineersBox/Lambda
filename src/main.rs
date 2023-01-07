@@ -22,6 +22,7 @@ extern crate arr_macro;
 extern crate std_tools;
 extern crate imgui;
 extern crate imgui_glium_renderer;
+extern crate image;
 
 use glium::{glutin, Surface};
 pub(crate) use lazy_static::lazy_static;
@@ -39,7 +40,7 @@ fn render(display: &glium::Display) {
     target.finish().unwrap();
 }
 
-fn main() {
+fn original_main() {
     info!(&crate::LOGGER, "Configured logging");
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new();
@@ -64,4 +65,11 @@ fn main() {
             _ => (),
         }
     });
+}
+
+fn main() {
+    info!(&crate::LOGGER, "Configured Logging");
+    let bsp = map::bsp::BSP::from_file(&"maps/test2.bsp".to_string()).unwrap();
+    loop {};
+
 }
