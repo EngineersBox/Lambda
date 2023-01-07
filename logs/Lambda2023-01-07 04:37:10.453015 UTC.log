@@ -1,3 +1,0 @@
-{"msg":"Logging directory already exists, skipping","level":"INFO","ts":"2023-01-07T04:37:10.464066Z","thread-id":"ThreadId(1)"}
-{"msg":"Configured Logging","level":"INFO","ts":"2023-01-07T04:37:10.464399Z"}
-{"msg":"Loading BSP file: maps/crossfire.bsp","level":"INFO","ts":"2023-01-07T04:37:10.464626Z"}
