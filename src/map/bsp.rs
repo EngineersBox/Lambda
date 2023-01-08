@@ -229,7 +229,6 @@ impl BSP {
             reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64))?;
             bsp.mip_textures.push(bsp30::MipTex::from_reader(&mut reader).unwrap());
         }
-        trace!(&crate::LOGGER, "Offsets: {:?}", bsp.mip_texture_offsets);
         debug!(&crate::LOGGER, "Read mip textures");
         bsp.load_textures(&mut reader);
         debug!(&crate::LOGGER, "Loaded textures");
@@ -358,9 +357,25 @@ impl BSP {
             if path_str.is_empty() {
                 continue;
             }
-            let path = Path::new(WAD_DIR.as_str()).join(path_str).to_string_lossy().to_string();
+            let mut wad_path = Path::new(path_str);
+            if let Ok(stripped_path) = wad_path.strip_prefix("/") {
+                wad_path = stripped_path;
+            }
+            let mut path: String = if let Some(parent_path) = wad_path.parent() {
+                Path::new(parent_path.file_name().unwrap())
+                    .join(wad_path.file_name().unwrap())
+                    .as_path()
+                    .to_string_lossy()
+                    .to_string()
+            } else {
+                wad_path.to_string_lossy().to_string()
+            };
+            path = Path::new(WAD_DIR.as_str())
+                .join(path)
+                .to_string_lossy()
+                .to_string();
+            info!(&crate::LOGGER, "({}) Loading WAD {}", wad_count, path);
             wad_files.push(Wad::new(&path));
-            info!(&crate::LOGGER, "Loaded WAD {} ({})", path, wad_count);
             wad_count += 1;
         }
         info!(&crate::LOGGER, "Loaded {} WADs", wad_count);
@@ -372,12 +387,15 @@ impl BSP {
     }
 
     pub (crate) fn load_textures(&mut self, reader: &mut BufReader<File>) {
-        info!(&crate::LOGGER, "Loading texture WADs...");
         if let Some(world_spawn) = BSP::find_entity(&self.entities, "worldspawn".to_string()) {
             if let Some(wad) = world_spawn.find_property(&String::from("wad")) {
-                info!(&crate::LOGGER, "Loading texture WAD: {}", &wad);
+                info!(&crate::LOGGER, "Loading texture WADs");
                 self.wad_files.append(&mut BSP::load_wad_files(wad));
+            } else {
+                warn!(&crate::LOGGER, "No 'wad' property present on 'worldspawn' entity, skipping texture loading");
             }
+        } else {
+            error!(&crate::LOGGER, "No 'worldspawn' entity present in BSP");
         }
         info!(&crate::LOGGER, "Loading textures...");
         self.m_textures.resize_with(self.texture_header.mip_texture_count as usize, || MipmapTexture::new());
@@ -397,7 +415,6 @@ impl BSP {
                 // Internal texture
                 let mip_tex: &bsp30::MipTex = &self.mip_textures[i];
                 let data_size: usize = std::mem::size_of::<u8>() * (mip_tex.offsets[3] + (mip_tex.height / 8) * (mip_tex.width / 8) + 2 + 768) as usize;
-                trace!(&crate::LOGGER, "Data size {}", data_size);
                 let mut img_data: Vec<u8> = Vec::with_capacity(data_size);
                 reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + self.mip_texture_offsets[i] as u64))
                     .expect("Unable to seek to textures lump offset for internal texture");
@@ -409,7 +426,7 @@ impl BSP {
             }
         }
         self.unload_wad_files();
-        info!(&crate::LOGGER, "Loaded {} textures, {} failed", self.texture_header.mip_texture_count, errors);
+        info!(&crate::LOGGER, "Loaded {} textures, {} failed", self.texture_header.mip_texture_count as usize - errors, errors);
         self.face_tex_coords.resize_with(self.faces.len(), Default::default);
         for i in 0..self.faces.len() {
             self.face_tex_coords[i].tex_coords.resize(self.faces[i].edge_count as usize, glm::vec2(0.0,0.0));
@@ -733,7 +750,6 @@ impl BSP {
     }
 
     pub (crate) fn parse_entities(entities_string: &String) -> Vec<Entity> {
-        trace!(&crate::LOGGER, "Parsing entities string: {}", entities_string);
         let mut entities: Vec<Entity> = Vec::new();
         let mut pos: usize = 0;
         loop {

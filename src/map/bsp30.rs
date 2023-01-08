@@ -1,6 +1,6 @@
 use std::io::{Result, Error, ErrorKind, BufReader};
 use byteorder::{LittleEndian, ReadBytesExt};
-use crate::resource::resource::{Resource, read_char_array};
+use crate::resource::resource::Resource;
 
 // ==== BSP FORMAT LAYOUT ====
 
@@ -376,6 +376,7 @@ pub type MipTexOffset = i32;
 pub const MAX_TEXTURE_NAME: usize = 16;
 pub const MIP_LEVELS: usize = 4;
 
+#[derive(Debug)]
 pub struct MipTex {
     pub name: [u8; MAX_TEXTURE_NAME],
     pub width: u32,
@@ -389,8 +390,8 @@ impl Resource for MipTex {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let mut name: [u8; MAX_TEXTURE_NAME] = [0; MAX_TEXTURE_NAME];
-        if read_char_array(reader, &mut name) == 0 {
-            return Err(Error::new(ErrorKind::InvalidData, "Expected texture name, got none"));
+        for i in 0..MAX_TEXTURE_NAME {
+            name[i] = reader.read_u8().unwrap();
         }
         let width = reader.read_u32::<Self::T>().unwrap();
         let height = reader.read_u32::<Self::T>().unwrap();

@@ -101,7 +101,7 @@ fn main() {
         crit!(&crate::LOGGER, "Panic at unknown location");
         std::thread::sleep(std::time::Duration::from_millis(1000));
     }));
-    let bsp = map::bsp::BSP::from_file(&"maps/test1.bsp".to_string()).unwrap();
+    let bsp = map::bsp::BSP::from_file(&"maps/c1a0.bsp".to_string()).unwrap();
     loop {};
 
 }
