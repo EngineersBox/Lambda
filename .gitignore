@@ -15,3 +15,4 @@ Cargo.lock
 
 # Logging
 logs/*
+data/**
