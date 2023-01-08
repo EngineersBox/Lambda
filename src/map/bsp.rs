@@ -256,12 +256,16 @@ impl BSP {
             for _ in 0..compressed_vis.capacity() {
                 compressed_vis.push(reader.read_u8().unwrap());
             }
-            info!(&crate::LOGGER, "Decompressing visibility list");
             let count: usize = bsp.count_vis_leaves(0);
+            info!(&crate::LOGGER, "Decompressing visibility list with {} leaves", count);
             bsp.vis_lists = Vec::with_capacity(count);
             for i in 0..count {
                 if bsp.leaves[i + 1].vis_offset >= 0 {
-                    bsp.vis_lists[i] = bsp.decompress_vis(i + 1, &compressed_vis);
+                    debug!(&crate::LOGGER, "Decompressing vis list {}", i);
+                    bsp.vis_lists.push(bsp.decompress_vis(i + 1, &compressed_vis));
+                    debug!(&crate::LOGGER, "Finished decompression {}", i);
+                } else {
+                    bsp.vis_lists.push(BitSet::new());
                 }
             }
             debug!(&crate::LOGGER, "Loaded visibility list");
@@ -566,7 +570,7 @@ impl BSP {
     }
 
     pub (crate) fn load_light_maps(&mut self, p_light_map_data: Vec<u8>) {
-        let mut loaded_bytes: usize = 0;
+        let mut loaded_bytes: isize = 0;
         let mut loaded_lightmaps: usize = 0;
         for i in 0..self.faces.len() {
             if self.faces[i].styles[0] != 0 || (self.faces[i].lightmap_offset as isize) < -1 {
@@ -627,21 +631,25 @@ impl BSP {
                 self.face_tex_coords[i].lightmap_coords[j].x = f_lightmap_u / n_width as f32;
                 self.face_tex_coords[i].lightmap_coords[j].y = f_lightmap_v / n_height as f32;
             }
+            let lm_offset: usize = self.faces[i].lightmap_offset as usize;
             let image: Image = Image {
                 channels: 3,
                 width: n_width as usize,
                 height: n_height as usize,
-                data: Vec::from_iter(p_light_map_data[self.faces[i].lightmap_offset as usize..(n_width + n_height * 3) as usize].iter().cloned()),
+                data: Vec::from_iter(p_light_map_data[
+                    lm_offset
+                    ..lm_offset + (n_width + n_height * 3 * std::mem::size_of::<u8>() as i32) as usize
+                ].iter().cloned()),
             };
             self.m_lightmaps.push(image);
             loaded_lightmaps += 1;
-            loaded_bytes += (n_width + n_height * 3) as usize;
+            loaded_bytes += (n_width + n_height * 3) as isize;
         }
         info!(
             &crate::LOGGER,
             "Loaded {} lightmaps, lightmap data diff: {} bytes",
             loaded_lightmaps,
-            loaded_bytes - self.header.lump[bsp30::LumpType::LumpLighting as usize].length as usize
+            loaded_bytes - self.header.lump[bsp30::LumpType::LumpLighting as usize].length as isize
         );
     }
 
