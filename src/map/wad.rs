@@ -1,15 +1,12 @@
 use std::io::{self, Read, Seek, SeekFrom, BufReader};
 use std::fs::{File, OpenOptions};
 use std::collections::HashMap;
-use byteorder::{ReadBytesExt, BigEndian};
-use bitter::{BitReader, BigEndianReader};
+use byteorder::{ReadBytesExt, LittleEndian};
+use bitter::{BitReader, LittleEndianReader};
 
 use crate::map::bsp30;
 use crate::resource::resource::Resource;
 use crate::resource::image::Image;
-
-pub const WAD2_MAGIC: [u8; 4] = [b'W', b'A', b'D', b'2'];
-pub const WAD3_MAGIC: [u8; 4] = [b'W', b'A', b'D', b'3'];
 
 #[derive(Debug)]
 pub struct WadHeader {
@@ -20,9 +17,10 @@ pub struct WadHeader {
 
 impl Resource for WadHeader {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> {
+        
         let magic: [u8; 4] = [
             reader.read_u8().unwrap(),
             reader.read_u8().unwrap(),
@@ -53,7 +51,7 @@ pub struct WadDirEntry {
 
 impl Resource for WadDirEntry {
 
-    type T = BigEndian;
+    type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> {
         let n_file_pos: i32 = reader.read_i32::<Self::T>().unwrap();
@@ -65,7 +63,7 @@ impl Resource for WadDirEntry {
         if read_bytes < 3 {
             panic!("Expected at least 3 bytes to read for compressed flag and n_dummy");
         }
-        let mut bit_reader: BigEndianReader = BigEndianReader::new(&next_bytes);
+        let mut bit_reader: LittleEndianReader = LittleEndianReader::new(&next_bytes);
         let compressed: bool = bit_reader.read_bit().unwrap();
         let n_dummy: i16 = bit_reader.read_i16().unwrap();
         let mut name: [u8; bsp30::MAX_TEXTURE_NAME] = [0; bsp30::MAX_TEXTURE_NAME];
@@ -110,11 +108,16 @@ pub struct Wad {
 
 impl Wad {
     
-    pub fn new(path: &str) -> Wad {
+    pub fn new(path: &String) -> Wad {
         let wad_file: File = match OpenOptions::new()
             .read(true)
             .open(&path) {
-            Ok(file) => file,
+            Ok(file) => {
+                if file.metadata().unwrap().is_dir() {
+                    panic!("Cannot read WAD from path pointing to directory: {}", path);
+                }
+                file
+            },
             Err(error) => panic!(
                 "Unable to read WAD file at {}: {}",
                 path,

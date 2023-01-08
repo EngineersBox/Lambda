@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use std::io::{Result, Error, ErrorKind, BufReader, Read, Seek, SeekFrom};
+use std::path::Path;
+use std::io::{Result, Error, ErrorKind, BufReader, Seek, SeekFrom};
 use std::fs::{File, OpenOptions};
 use bit_set::BitSet;
 use lazy_static::lazy_static;
@@ -117,8 +118,8 @@ pub struct BSP {
 }
 
 lazy_static!{
-    static ref WAD_DIR: String = String::from("../data/wads");
-    static ref SKY_DIR: String = String::from("../data/textures/sky");
+    static ref WAD_DIR: String = String::from("data/wads");
+    static ref SKY_DIR: String = String::from("data/textures/sky");
     static ref SKY_NAME_SUFFIXES: [String; 6] = [
         String::from("ft"),
         String::from("bk"),
@@ -228,6 +229,7 @@ impl BSP {
             reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64))?;
             bsp.mip_textures.push(bsp30::MipTex::from_reader(&mut reader).unwrap());
         }
+        trace!(&crate::LOGGER, "Offsets: {:?}", bsp.mip_texture_offsets);
         debug!(&crate::LOGGER, "Read mip textures");
         bsp.load_textures(&mut reader);
         debug!(&crate::LOGGER, "Loaded textures");
@@ -351,24 +353,15 @@ impl BSP {
     pub (crate) fn load_wad_files(wad_str: &String) -> Vec<Wad> {
         let wad_string: String = wad_str.replace("\\", "/");
         let mut wad_count: usize = 0;
-        let mut pos: usize = 0;
         let mut wad_files: Vec<Wad> = Vec::new();
-        loop {
-            pos += 1;
-            let next: Option<usize> = wad_string[pos..].find(';');
-            if next.is_none() {
-                break;
+        for path_str in wad_string.split(";") {
+            if path_str.is_empty() {
+                continue;
             }
-            let mut path: String = wad_string[pos..(next.unwrap() - pos)].to_string();
-            if let Some(it) = path.rfind('/') {
-                if let Some(it2) = path[0..it - 1].rfind('/') {
-                    path = path[(it2 + 1)..].to_string();
-                }
-            }
-            wad_files.push(Wad::new((WAD_DIR.clone() + path.as_str()).as_str()));
+            let path = Path::new(WAD_DIR.as_str()).join(path_str).to_string_lossy().to_string();
+            wad_files.push(Wad::new(&path));
+            info!(&crate::LOGGER, "Loaded WAD {} ({})", path, wad_count);
             wad_count += 1;
-            info!(&crate::LOGGER, "Loaded {}", wad_count);
-            pos = next.unwrap();
         }
         info!(&crate::LOGGER, "Loaded {} WADs", wad_count);
         return wad_files;
@@ -380,8 +373,9 @@ impl BSP {
 
     pub (crate) fn load_textures(&mut self, reader: &mut BufReader<File>) {
         info!(&crate::LOGGER, "Loading texture WADs...");
-        if let Some(world_spawn) = BSP::find_entity(&self.entities, "world_spawn".to_string()) {
+        if let Some(world_spawn) = BSP::find_entity(&self.entities, "worldspawn".to_string()) {
             if let Some(wad) = world_spawn.find_property(&String::from("wad")) {
+                info!(&crate::LOGGER, "Loading texture WAD: {}", &wad);
                 self.wad_files.append(&mut BSP::load_wad_files(wad));
             }
         }
@@ -389,12 +383,13 @@ impl BSP {
         self.m_textures.resize_with(self.texture_header.mip_texture_count as usize, || MipmapTexture::new());
         let mut errors: usize = 0;
         for i in 0..self.texture_header.mip_texture_count as usize {
+            debug!(&crate::LOGGER, "Loading texture {}", String::from_utf8_lossy(&self.mip_textures[i].name));
             if self.mip_textures[i].offsets[0] == 0 {
                 // External texture
                 if let Some(tex) = self.load_texture_from_wads(&String::from_utf8_lossy(&self.mip_textures[i].name).to_string()) {
                     self.m_textures[i] = tex;
                 }  else {
-                    error!(&crate::LOGGER, "Failed to load texture {} from WAD files", String::from_utf8_lossy(&self.mip_textures[i].name));
+                    error!(&crate::LOGGER, "Failed to load texture {}", String::from_utf8_lossy(&self.mip_textures[i].name));
                     errors += 1;
                     continue;
                 }
@@ -402,8 +397,11 @@ impl BSP {
                 // Internal texture
                 let mip_tex: &bsp30::MipTex = &self.mip_textures[i];
                 let data_size: usize = std::mem::size_of::<u8>() * (mip_tex.offsets[3] + (mip_tex.height / 8) * (mip_tex.width / 8) + 2 + 768) as usize;
+                trace!(&crate::LOGGER, "Data size {}", data_size);
                 let mut img_data: Vec<u8> = Vec::with_capacity(data_size);
-                reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + self.mip_texture_offsets[i] as u64)).expect("Unable to seek to textures lump offset for internal texture");
+                reader.seek(SeekFrom::Start(self.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + self.mip_texture_offsets[i] as u64))
+                    .expect("Unable to seek to textures lump offset for internal texture");
+                // TODO: Check header magic id, if not 30 then use Quake palette
                 for _ in 0..data_size {
                     img_data.push(reader.read_u8().unwrap());
                 }
@@ -461,8 +459,8 @@ impl BSP {
     }
 
     pub (crate) fn load_decals(&mut self) {
-        self.decal_wads.push(Wad::new((WAD_DIR.clone() + "valve/decals.wad").as_str()));
-        self.decal_wads.push(Wad::new((WAD_DIR.clone() + "cstrike/decals.wad").as_str()));
+        self.decal_wads.push(Wad::new(&Path::new(WAD_DIR.as_str()).join("valve/decals.wad").to_string_lossy().to_string()));
+        self.decal_wads.push(Wad::new(&Path::new(WAD_DIR.as_str()).join("cstrike/decals.wad").to_string_lossy().to_string()));
         let info_decals: Vec<&Entity> = BSP::find_entities(&self.entities, "infodecal".to_string()).clone();
         if info_decals.is_empty() {
             info!(&crate::LOGGER, "No decals to load, skipping");
