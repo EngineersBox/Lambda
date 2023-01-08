@@ -401,7 +401,7 @@ impl BSP {
         self.m_textures.resize_with(self.texture_header.mip_texture_count as usize, || MipmapTexture::new());
         let mut errors: usize = 0;
         for i in 0..self.texture_header.mip_texture_count as usize {
-            debug!(&crate::LOGGER, "Loading texture {}", String::from_utf8_lossy(&self.mip_textures[i].name));
+            debug!(&crate::LOGGER, "({}) Loading texture {}", i, String::from_utf8_lossy(&self.mip_textures[i].name));
             if self.mip_textures[i].offsets[0] == 0 {
                 // External texture
                 if let Some(tex) = self.load_texture_from_wads(&String::from_utf8_lossy(&self.mip_textures[i].name).to_string()) {

@@ -200,7 +200,7 @@ impl Wad {
             img.height = height as usize;
             img.data.resize(width as usize * height as usize * 4, 0);
             for i in 0..(height * width) as usize {
-                let palette_index: usize = (pixel_index + i) * 3;
+                let palette_index: usize = raw_texture[pixel_index + i] as usize * 3;
                 img.data[i * 4 + 0] = raw_texture[palette_offset + palette_index + 0];
                 img.data[i * 4 + 1] = raw_texture[palette_offset + palette_index + 1];
                 img.data[i * 4 + 2] = raw_texture[palette_offset + palette_index + 2];
@@ -229,7 +229,7 @@ impl Wad {
             img.height = height as usize;
             img.data.resize(width as usize * height as usize * 4, 0);
             for i in 0..(height * width) as usize {
-                let palette_index: usize = (pixel_index + 1) * 3; 
+                let palette_index: usize = raw_texture[pixel_index + i] as usize * 3; 
                 img.data[i * 4 + 0] = raw_texture[colour + 0];
                 img.data[i * 4 + 1] = raw_texture[colour + 1];
                 img.data[i * 4 + 2] = raw_texture[colour + 2];
@@ -246,8 +246,11 @@ impl Wad {
 
 fn apply_alpha_sections(p_tex: &mut Image) {
     let mut p_rgb_texture: Vec<u8> = Vec::with_capacity(p_tex.width * p_tex.height * 4);
-    for i in 0..(p_tex.width * p_tex.height) {
-        p_rgb_texture[i * 4 + 2] = 255;
+    for _ in 0..(p_tex.width * p_tex.height) {
+        p_rgb_texture.push(0);
+        p_rgb_texture.push(0);
+        p_rgb_texture.push(255);
+        p_rgb_texture.push(0);
     }
     for y in 0..p_tex.height {
         for x in 0..p_tex.width {
