@@ -110,7 +110,7 @@ pub struct BSP {
     pub wad_files: Vec<Wad>,
     pub decal_wads: Vec<Wad>,
     pub m_decals: Vec<Decal>,
-    pub vis_lists: Vec<BitSet>,
+    pub vis_lists: Vec<BitSet<u8>>,
     pub m_textures: Vec<MipmapTexture>,
     pub m_lightmaps: Vec<Image>,
     pub hull_0_clip_nodes: Vec<bsp30::ClipNode>,
@@ -265,7 +265,7 @@ impl BSP {
                     bsp.vis_lists.push(bsp.decompress_vis(i + 1, &compressed_vis));
                     debug!(&crate::LOGGER, "Finished decompression {}", i);
                 } else {
-                    bsp.vis_lists.push(BitSet::new());
+                    bsp.vis_lists.push(BitSet::<u8>::default());
                 }
             }
             debug!(&crate::LOGGER, "Loaded visibility list");
@@ -790,17 +790,17 @@ impl BSP {
         return left_node_count + right_node_count;
     }
 
-    pub (crate) fn decompress_vis(&self, leaf: usize, compresed_vis: &Vec<u8>) -> BitSet {
-        let mut pvs: BitSet = BitSet::new();
+    pub (crate) fn decompress_vis(&self, leaf: usize, compresed_vis: &Vec<u8>) -> BitSet<u8> {
+        let mut pvs: BitSet<u8> = BitSet::<u8>::default();
         pvs.reserve_len(self.leaves.len() - 1);
         let mut read: usize = self.leaves[leaf].vis_offset as usize;
         let row: usize = (self.vis_lists.len() + 7) / 8;
         while pvs.len() / 8 < row {
-            if read > compresed_vis.len() {
-                pvs.insert(0usize);
+            if compresed_vis[read] != 0 {
+                pvs.insert(compresed_vis[read] as usize);
             } else {
                 read += 1;
-                for _ in 0..read {
+                for _ in 0..compresed_vis[read] as usize {
                     pvs.insert(0x00);
                     if pvs.len() / 8 >= row {
                         break;
