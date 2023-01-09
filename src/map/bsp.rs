@@ -200,6 +200,7 @@ impl BSP {
         bsp_comp_init!(edges, bsp30::LumpType::LumpEdges, bsp30::Edge);
         bsp_comp_init!(vertices, bsp30::LumpType::LumpVertexes, bsp30::Vertex);
         bsp_comp_init!(planes, bsp30::LumpType::LumpPlanes, bsp30::Plane);
+        bsp.load_models(&mut reader);
         // Read and parse entities
         let mut entity_buffer: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].length as usize);
         reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64))?;
@@ -261,14 +262,12 @@ impl BSP {
             bsp.vis_lists = Vec::with_capacity(count);
             for i in 0..count {
                 if bsp.leaves[i + 1].vis_offset >= 0 {
-                    debug!(&crate::LOGGER, "Decompressing vis list {}", i);
                     bsp.vis_lists.push(bsp.decompress_vis(i + 1, &compressed_vis));
-                    debug!(&crate::LOGGER, "Finished decompression {}", i);
                 } else {
                     bsp.vis_lists.push(BitSet::<u8>::default());
                 }
             }
-            debug!(&crate::LOGGER, "Loaded visibility list");
+            debug!(&crate::LOGGER, "Loaded {} visibility lists", count);
         }
         // Close file through reader
         std::mem::drop(reader);
@@ -285,12 +284,16 @@ impl BSP {
                         .unwrap() as usize;
                     let mut origin: glm::Vec3 = bsp.models[i_model].model.origin;
                     macro_rules! scan {
-                        ($string:expr, $sep:expr, $( $x:ty ),+) => {{
+                        ($string:expr, $sep:expr, $($x:ty),+) => {{
                             let mut iter = $string.split($sep);
                             ($(iter.next().and_then(|word| word.parse::<$x>().ok()),)*)
                         }}
                     }
-                    let origin_points: (Option<f32>, Option<f32>, Option<f32>) = scan!(sz_origin, char::is_whitespace, f32, f32, f32);
+                    let origin_points: (Option<f32>, Option<f32>, Option<f32>) = scan!(
+                        sz_origin,
+                        char::is_whitespace,
+                        f32, f32, f32
+                    );
                     origin.x = origin_points.0.unwrap();
                     origin.y = origin_points.1.unwrap();
                     origin.z = origin_points.2.unwrap();
@@ -310,6 +313,7 @@ impl BSP {
             }
             return false;
         });
+        info!(&crate::LOGGER, "Partitioned bush entities");
         info!(&crate::LOGGER, "Finished loading BSP");
         return Ok(bsp);
     }
@@ -365,9 +369,12 @@ impl BSP {
             if let Ok(stripped_path) = wad_path.strip_prefix("/") {
                 wad_path = stripped_path;
             }
+            debug!(&crate::LOGGER, "WAD path: {:?}", wad_path);
             let mut path: String = if let Some(parent_path) = wad_path.parent() {
-                Path::new(parent_path.file_name().unwrap())
-                    .join(wad_path.file_name().unwrap())
+                Path::new(parent_path.file_name()
+                        .or_else(|| Some(std::ffi::OsStr::new("")))
+                        .unwrap()
+                    ).join(wad_path.file_name().unwrap())
                     .as_path()
                     .to_string_lossy()
                     .to_string()
@@ -411,7 +418,7 @@ impl BSP {
                 if let Some(tex) = self.load_texture_from_wads(&String::from_utf8_lossy(&self.mip_textures[i].name).to_string()) {
                     self.m_textures[i] = tex;
                 }  else {
-                    error!(&crate::LOGGER, "Failed to load texture {}", String::from_utf8_lossy(&self.mip_textures[i].name));
+                    error!(&crate::LOGGER, "Failed to load external texture {}", String::from_utf8_lossy(&self.mip_textures[i].name));
                     errors += 1;
                     continue;
                 }
@@ -727,6 +734,7 @@ impl BSP {
         hull_3.clip_maxs[0] = 16.0;
         hull_3.clip_maxs[1] = 16.0;
         hull_3.clip_maxs[2] = 18.0;
+        self.models.push(model_0);
         for i in 0..sub_models.capacity() {
             if i != 0 {
                 self.models.push(self.models.last().unwrap().clone())
@@ -735,7 +743,6 @@ impl BSP {
             let mut model: &mut Model = &mut self.models[index];
             model.model = sub_models[i];
         }
-        todo!()
     }
 
     fn is_brush_entity(entity: &Entity) -> bool {
