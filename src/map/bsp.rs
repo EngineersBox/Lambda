@@ -795,14 +795,15 @@ impl BSP {
         pvs.reserve_len(self.leaves.len() - 1);
         let mut read: usize = self.leaves[leaf].vis_offset as usize;
         let row: usize = (self.vis_lists.len() + 7) / 8;
-        while pvs.len() / 8 < row {
+        while pvs.capacity() / 8 < row {
             if compresed_vis[read] != 0 {
                 pvs.insert(compresed_vis[read] as usize);
+                continue;
             } else {
                 read += 1;
                 for _ in 0..compresed_vis[read] as usize {
                     pvs.insert(0x00);
-                    if pvs.len() / 8 >= row {
+                    if pvs.capacity() / 8 >= row {
                         break;
                     }
                 }
