@@ -469,6 +469,7 @@ impl BSP {
     }
 
     pub (crate) fn load_texture_from_wads(&mut self, name: &String) -> Option<MipmapTexture> {
+        trace!(&crate::LOGGER, "Loading texture from WADs: {}", name);
         for wad in self.wad_files.iter_mut() {
             if let Some(p_mipmap_tex) = wad.load_texture(name) {
                 return Some(p_mipmap_tex);
@@ -478,6 +479,7 @@ impl BSP {
     }
 
     pub (crate) fn load_decal_texture(decal_wads: &mut Vec<Wad>, name: &String) -> Option<MipmapTexture> {
+        trace!(&crate::LOGGER, "Loading decal texture: {}", name);
         for decal_wad in decal_wads.iter_mut() {
             if let Some(p_mipmap_tex) = decal_wad.load_texture(name) {
                 return Some(p_mipmap_tex);
