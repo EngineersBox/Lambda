@@ -6,6 +6,7 @@ mod logging;
 mod util;
 mod rendering;
 mod core;
+mod input;
 
 extern crate glium;
 extern crate glm;
