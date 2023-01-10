@@ -19,13 +19,16 @@ pub struct VertexWithLM {
 
 pub struct TextureAtlas {
     allocated: Vec<usize>,
-    m_img: Image,
+    m_image: Image,
 }
 
 impl TextureAtlas {
 
     pub fn new(width: usize, height: usize, channels: usize) -> Self {
-
+        return TextureAtlas {
+            allocated: Vec::new(),
+            m_image: Image::from((width, height, channels)),
+        };
     }
 
 }
