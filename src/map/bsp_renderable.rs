@@ -5,6 +5,7 @@ use crate::rendering::renderer::{Renderer,Texture,InputLayout,Buffer,FaceRenderI
 use crate::rendering::renderable::{Renderable,RenderSettings};
 use crate::rendering::view::camera::Camera;
 use crate::map::bsp::BSP;
+use crate::resource::image::Image;
 
 pub struct Vertex {
     pub position: glm::Vec3,
@@ -14,6 +15,19 @@ pub struct Vertex {
 
 pub struct VertexWithLM {
     pub lightmap_coord: glm::Vec2,
+}
+
+pub struct TextureAtlas {
+    allocated: Vec<usize>,
+    m_img: Image,
+}
+
+impl TextureAtlas {
+
+    pub fn new(width: usize, height: usize, channels: usize) -> Self {
+
+    }
+
 }
 
 pub struct BSPRenderable {

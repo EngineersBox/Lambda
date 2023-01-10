@@ -346,13 +346,19 @@ impl BSP {
         let skyname: Option<&String> = world_spawn?.find_property(&"skyname".to_string());
         let mut result: Vec<Image> = Vec::with_capacity(6);
         for i in 0..6 {
-            result.push(Image::from_path(&(
+            match Image::load(
                 SKY_DIR.clone()
                 + "/"
                 + skyname?.as_str()
                 + SKY_NAME_SUFFIXES[i].clone().as_str()
                 + ".tga"
-            )));
+            ) {
+                Ok(img) => result.push(img),
+                Err(error) => {
+                    error!(&crate::LOGGER, "Unable to load skybox: {}", error);
+                    return None;
+                },
+            };
         }
         return result.try_into().ok();
     }
