@@ -288,16 +288,16 @@ fn apply_alpha_sections(p_tex: &mut Image) {
                 corner_pixel!(((y - 1) * p_tex.width + (x - 1)) * 4);
             }
             // Top
-            if x >= 0 && y >= 0 {
+            if x >= 0 && y > 0 {
                 absolute_pixel!(((y - 1) * p_tex.width + x) * 4);
             }
             // Top right
-            if x < p_tex.width && y > 0 {
+            if x < p_tex.width - 1 && y > 0 {
                 corner_pixel!(((y - 1) * p_tex.width + (x + 1)) * 4);
             }
             // Left
             if x > 0 {
-                absolute_pixel!((y * p_tex.width + (x + 1)) * 4);
+                absolute_pixel!((y * p_tex.width + (x - 1)) * 4);
             }
             // Right
             if x < p_tex.width - 1 {
