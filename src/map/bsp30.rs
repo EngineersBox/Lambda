@@ -391,7 +391,6 @@ impl Resource for MipTex {
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let mut name: [u8; MAX_TEXTURE_NAME] = [0; MAX_TEXTURE_NAME];
         read_char_array(&mut name, reader)?;
-        trace!(&crate::LOGGER, "Name: {} {:?}", String::from_utf8_lossy(&name), name);
         let width = reader.read_u32::<Self::T>()?;
         let height = reader.read_u32::<Self::T>()?;
         let mut offsets: [u32; MIP_LEVELS] = [0; MIP_LEVELS];

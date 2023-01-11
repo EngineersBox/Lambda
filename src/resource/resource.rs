@@ -10,6 +10,7 @@ pub fn read_char_array(arr: &mut [u8], reader: &mut BufReader<impl ReadBytesExt>
     let mut null_byte_encountered: bool = false;
     for i in 0..arr.len() {
         if null_byte_encountered {
+            reader.read_u8()?;
             continue;
         }
         arr[i] = reader.read_u8()?;
