@@ -421,9 +421,9 @@ impl BSP {
             debug!(&crate::LOGGER, "({}) Loading texture {}", i, String::from_utf8_lossy(&self.mip_textures[i].name));
             if self.mip_textures[i].offsets[0] == 0 {
                 // External texture
-                if let Some(tex) = self.load_texture_from_wads(&String::from_utf8_lossy(&self.mip_textures[i].name).to_string()) {
+                if let Some(tex) = self.load_texture_from_wads(&String::from_utf8_lossy(&self.mip_textures[i].name).trim_matches(char::from(0)).to_string()) {
                     self.m_textures[i] = tex;
-                }  else {
+                } else {
                     error!(&crate::LOGGER, "Failed to load external texture {}", String::from_utf8_lossy(&self.mip_textures[i].name));
                     errors += 1;
                     continue;

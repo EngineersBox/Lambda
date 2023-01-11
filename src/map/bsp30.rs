@@ -1,6 +1,6 @@
 use std::io::{Result, Error, ErrorKind, BufReader};
 use byteorder::{LittleEndian, ReadBytesExt};
-use crate::resource::resource::Resource;
+use crate::resource::resource::{Resource,read_char_array};
 
 // ==== BSP FORMAT LAYOUT ====
 
@@ -97,8 +97,8 @@ impl Resource for Lump {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let offset: i32 = reader.read_i32::<Self::T>().unwrap();
-        let length: i32 = reader.read_i32::<Self::T>().unwrap();
+        let offset: i32 = reader.read_i32::<Self::T>()?;
+        let length: i32 = reader.read_i32::<Self::T>()?;
         return Ok(Lump {
             offset,
             length,
@@ -118,10 +118,10 @@ impl Resource for Header {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let version: i32 = reader.read_i32::<Self::T>().unwrap();
+        let version: i32 = reader.read_i32::<Self::T>()?;
         let mut lump: Vec<Lump> = Vec::with_capacity(LumpType::HeaderLumps as usize + 1);
         for _ in 0..(LumpType::HeaderLumps as usize + 1) {
-            lump.push(Lump::from_reader(reader).unwrap());
+            lump.push(Lump::from_reader(reader)?);
         }
         return Ok(Header {
             version,
@@ -145,23 +145,23 @@ impl Resource for Node {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let plane_index: u32 = reader.read_u32::<Self::T>().unwrap();
+        let plane_index: u32 = reader.read_u32::<Self::T>()?;
         let child_index: [i16; 2] = [
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
         ];
         let lower: [i16; 3] = [
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
         ];
         let upper: [i16; 3] = [
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
         ];
-        let first_face: u16 = reader.read_u16::<Self::T>().unwrap();
-        let last_face: u16 = reader.read_u16::<Self::T>().unwrap();
+        let first_face: u16 = reader.read_u16::<Self::T>()?;
+        let last_face: u16 = reader.read_u16::<Self::T>()?;
         return Ok(Node {
             plane_index,
             child_index,
@@ -189,25 +189,25 @@ impl Resource for Leaf {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let content: i32 = reader.read_i32::<Self::T>().unwrap();
-        let vis_offset: i32 = reader.read_i32::<Self::T>().unwrap();
+        let content: i32 = reader.read_i32::<Self::T>()?;
+        let vis_offset: i32 = reader.read_i32::<Self::T>()?;
         let lower: [i16; 3] = [
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
         ];
         let upper: [i16; 3] = [
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
         ];
-        let first_mark_surface: u16 = reader.read_u16::<Self::T>().unwrap();
-        let mark_surface_count: u16 = reader.read_u16::<Self::T>().unwrap();
+        let first_mark_surface: u16 = reader.read_u16::<Self::T>()?;
+        let mark_surface_count: u16 = reader.read_u16::<Self::T>()?;
         let ambient_levels: [u8; 4] = [
-            reader.read_u8().unwrap(),
-            reader.read_u8().unwrap(),
-            reader.read_u8().unwrap(),
-            reader.read_u8().unwrap(),
+            reader.read_u8()?,
+            reader.read_u8()?,
+            reader.read_u8()?,
+            reader.read_u8()?,
         ];
         return Ok(Leaf {
             content,
@@ -229,7 +229,7 @@ impl Resource for MarkSurface {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let mark_surface: MarkSurface = reader.read_u16::<Self::T>().unwrap() as MarkSurface;
+        let mark_surface: MarkSurface = reader.read_u16::<Self::T>()? as MarkSurface;
         return Ok(mark_surface);
     }
 
@@ -248,12 +248,12 @@ impl Resource for Plane {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let normal: glm::Vec3 = glm::vec3(
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
         );
-        let dist: f32 = reader.read_f32::<Self::T>().unwrap();
-        let r#type: i32 = reader.read_i32::<Self::T>().unwrap();
+        let dist: f32 = reader.read_f32::<Self::T>()?;
+        let r#type: i32 = reader.read_i32::<Self::T>()?;
         return Ok(Plane {
             normal,
             dist,
@@ -271,9 +271,9 @@ impl Resource for Vertex {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let vertex: glm::Vec3 = glm::vec3(
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
         );
         return Ok(vertex);
     }
@@ -290,8 +290,8 @@ impl Resource for Edge {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let vertex_index: [u16; 2] = [
-            reader.read_u16::<Self::T>().unwrap(),
-            reader.read_u16::<Self::T>().unwrap(),
+            reader.read_u16::<Self::T>()?,
+            reader.read_u16::<Self::T>()?,
         ];
         return Ok(Edge {
             vertex_index,
@@ -315,18 +315,18 @@ impl Resource for Face {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let plane_index: u16 = reader.read_u16::<Self::T>().unwrap();
-        let plane_size: u16 = reader.read_u16::<Self::T>().unwrap();
-        let first_edge_index: u32 = reader.read_u32::<Self::T>().unwrap();
-        let edge_count: u16 = reader.read_u16::<Self::T>().unwrap();
-        let texture_info: u16 = reader.read_u16::<Self::T>().unwrap();
+        let plane_index: u16 = reader.read_u16::<Self::T>()?;
+        let plane_size: u16 = reader.read_u16::<Self::T>()?;
+        let first_edge_index: u32 = reader.read_u32::<Self::T>()?;
+        let edge_count: u16 = reader.read_u16::<Self::T>()?;
+        let texture_info: u16 = reader.read_u16::<Self::T>()?;
         let styles: [u8; 4] = [
-            reader.read_u8().unwrap(),
-            reader.read_u8().unwrap(),
-            reader.read_u8().unwrap(),
-            reader.read_u8().unwrap(),
+            reader.read_u8()?,
+            reader.read_u8()?,
+            reader.read_u8()?,
+            reader.read_u8()?,
         ];
-        let lightmap_offset: u32 = reader.read_u32::<Self::T>().unwrap();
+        let lightmap_offset: u32 = reader.read_u32::<Self::T>()?;
         return Ok(Face {
             plane_index,
             plane_size,
@@ -347,7 +347,7 @@ impl Resource for SurfaceEdge {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let surface_edge: SurfaceEdge = reader.read_i32::<Self::T>().unwrap() as SurfaceEdge;
+        let surface_edge: SurfaceEdge = reader.read_i32::<Self::T>()? as SurfaceEdge;
         return Ok(surface_edge);
     }
 
@@ -363,7 +363,7 @@ impl Resource for TextureHeader {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let mip_texture_count: u32 = reader.read_u32::<Self::T>().unwrap();
+        let mip_texture_count: u32 = reader.read_u32::<Self::T>()?;
         return Ok(TextureHeader {
             mip_texture_count,
         });
@@ -390,17 +390,13 @@ impl Resource for MipTex {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let mut name: [u8; MAX_TEXTURE_NAME] = [0; MAX_TEXTURE_NAME];
-        for i in 0..MAX_TEXTURE_NAME {
-            name[i] = reader.read_u8().unwrap();
-        }
-        let width = reader.read_u32::<Self::T>().unwrap();
-        let height = reader.read_u32::<Self::T>().unwrap();
+        read_char_array(&mut name, reader)?;
+        trace!(&crate::LOGGER, "Name: {} {:?}", String::from_utf8_lossy(&name), name);
+        let width = reader.read_u32::<Self::T>()?;
+        let height = reader.read_u32::<Self::T>()?;
         let mut offsets: [u32; MIP_LEVELS] = [0; MIP_LEVELS];
         for i in 0..MIP_LEVELS {
-            match reader.read_u32::<Self::T>() {
-                Ok(value) => offsets[i] = value,
-                Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Unable to read texture mip levels: {}", error))),
-            }
+            offsets[i] = reader.read_u32::<Self::T>()?;
         }
         return Ok(MipTex {
             name,
@@ -427,19 +423,19 @@ impl Resource for TextureInfo {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let s: glm::Vec3 = glm::vec3(
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
         );
-        let s_shift: f32 = reader.read_f32::<Self::T>().unwrap();
+        let s_shift: f32 = reader.read_f32::<Self::T>()?;
         let t: glm::Vec3 = glm::vec3(
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
         );
-        let t_shift: f32 = reader.read_f32::<Self::T>().unwrap();
-        let mip_tex_index: u32 = reader.read_u32::<Self::T>().unwrap();
-        let flags: u32 = reader.read_u32::<Self::T>().unwrap();
+        let t_shift: f32 = reader.read_f32::<Self::T>()?;
+        let mip_tex_index: u32 = reader.read_u32::<Self::T>()?;
+        let flags: u32 = reader.read_u32::<Self::T>()?;
         return Ok(TextureInfo {
             s,
             s_shift,
@@ -485,19 +481,19 @@ impl Resource for Model {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let lower: glm::Vec3 = glm::vec3(
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
         );
         let upper: glm::Vec3 = glm::vec3(
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
         );
         let origin: glm::Vec3 = glm::vec3(
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
-            reader.read_f32::<Self::T>().unwrap(),
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
+            reader.read_f32::<Self::T>()?,
         );
         let mut head_nodes_index: [i32; MAX_MAP_HULLS] = [0; MAX_MAP_HULLS];
         for i in 0..MAX_MAP_HULLS {
@@ -506,9 +502,9 @@ impl Resource for Model {
                 Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Unable to read model head node index: {}", error))),
             }
         }
-        let vis_leaves: i32 = reader.read_i32::<Self::T>().unwrap();
-        let first_face: i32 = reader.read_i32::<Self::T>().unwrap();
-        let face_count: i32 = reader.read_i32::<Self::T>().unwrap();
+        let vis_leaves: i32 = reader.read_i32::<Self::T>()?;
+        let first_face: i32 = reader.read_i32::<Self::T>()?;
+        let face_count: i32 = reader.read_i32::<Self::T>()?;
         return Ok(Model {
             lower,
             upper,
@@ -533,10 +529,10 @@ impl Resource for ClipNode {
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
-        let plane_index: i32 = reader.read_i32::<Self::T>().unwrap();
+        let plane_index: i32 = reader.read_i32::<Self::T>()?;
         let child_index: [i16; 2] = [
-            reader.read_i16::<Self::T>().unwrap(),
-            reader.read_i16::<Self::T>().unwrap(),
+            reader.read_i16::<Self::T>()?,
+            reader.read_i16::<Self::T>()?,
         ];
         return Ok(ClipNode {
             plane_index,

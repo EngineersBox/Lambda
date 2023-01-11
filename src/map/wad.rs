@@ -2,10 +2,9 @@ use std::io::{self, Read, Seek, SeekFrom, BufReader};
 use std::fs::{File, OpenOptions};
 use std::collections::HashMap;
 use byteorder::{ReadBytesExt, LittleEndian};
-use bitter::{BitReader, LittleEndianReader};
 
 use crate::map::bsp30;
-use crate::resource::resource::Resource;
+use crate::resource::resource::{Resource,read_char_array};
 use crate::resource::image::Image;
 
 #[derive(Debug)]
@@ -61,12 +60,7 @@ impl Resource for WadDirEntry {
         let compressed: bool = reader.read_u8()? == 1u8;
         let n_dummy: i16 = reader.read_i16::<Self::T>()?;
         let mut name: [u8; bsp30::MAX_TEXTURE_NAME] = [0; bsp30::MAX_TEXTURE_NAME];
-        for i in 0..bsp30::MAX_TEXTURE_NAME {
-            match reader.read_u8() {
-                Ok(value) => name[i] = value,
-                Err(error) => return Err(error),
-            };
-        }
+        read_char_array(&mut name, reader)?;
         return Ok(WadDirEntry {
             n_file_pos,
             n_disk_size,
@@ -164,7 +158,6 @@ impl Wad {
     }
 
     fn get_texture(&mut self, name: &String) -> Vec<u8> {
-        trace!(&crate::LOGGER, "WAD textures: {:?}", self.dir_entries.keys().collect::<Vec<&String>>());
         let option_entry: Option<&WadDirEntry> = self.dir_entries.get(&name.to_uppercase());
         if let Some(entry) = option_entry {
             if entry.compressed {
