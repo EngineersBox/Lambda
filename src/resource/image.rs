@@ -1,7 +1,6 @@
-use std::io::{Result,Error,ErrorKind,Cursor};
+use std::io::{Result,Error,ErrorKind};
 use image::{
     DynamicImage,
-    ImageError,
     io::Reader as ImageReader
 };
 
