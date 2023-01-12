@@ -239,7 +239,8 @@ impl BSPRenderable {
         }
         let m_static_geometry_vbo = renderer.create_buffer(
             vertices.len() * std::mem::size_of::<VertexWithLM>(),
-            &vertices[..],
+            &vertices[..], // TODO: Convert to buffer data format to consume in renderer
+                           // implementation
         );
         todo!()
     }
