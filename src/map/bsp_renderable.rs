@@ -5,7 +5,8 @@ use bit_set::BitSet;
 use crate::rendering::renderer::{Renderer,Texture,InputLayout,Buffer,FaceRenderInfo};
 use crate::rendering::renderable::{Renderable,RenderSettings};
 use crate::rendering::view::camera::Camera;
-use crate::map::bsp::BSP;
+use crate::map::bsp::{BSP,FaceTexCoords};
+use crate::map::wad::MipmapTexture;
 use crate::resource::image::Image;
 
 pub struct Vertex {
@@ -104,20 +105,54 @@ pub struct BSPRenderable {
 
 impl BSPRenderable {
 
-    pub fn new(renderer: Box<dyn Renderer>, bsp: Box<BSP>, camera: Box<Camera>) -> Self {
+    pub fn new(renderer: Box<dyn Renderer>, bsp: Box<BSP>, camera: Box<Camera>) -> Result<Self> {
+        let m_skybox_tex: Option<Box<dyn Texture>> = bsp.load_skybox()
+            .map(|images: [Image; 6]| renderer.create_cube_texture(images));
+        let m_textures: Vec<Box<dyn Texture>> = BSPRenderable::load_textures(&renderer, &bsp.m_textures);
+        let (lm_coords, m_lightmap_atlas): (Vec<Vec<glm::Vec2>>, Box<dyn Texture>) = BSPRenderable::load_lightmaps(
+            &bsp.m_lightmaps,
+            bsp.faces.len(),
+            &bsp.face_tex_coords,
+            &renderer,
+        )?;
         todo!()
     }
 
-    fn load_textures(&self) {
-        todo!()
+    fn load_textures(renderer: &Box<dyn Renderer>, bsp_m_textures: &Vec<MipmapTexture>) -> Vec<Box<dyn Texture>> {
+        let mut m_textures: Vec<Box<dyn Texture>> = Vec::with_capacity(bsp_m_textures.len());
+        for mip_tex in bsp_m_textures {
+            m_textures.push(renderer.create_texture(&vec![
+                &mip_tex.img[0],
+                &mip_tex.img[4],
+            ]));
+        }
+        return m_textures;
     }
 
-    fn load_lightmaps(&self) -> Vec<Vec<glm::Vec2>> {
-        todo!()
-    }
-
-    fn load_sky_textures(&self) {
-        todo!()
+    fn load_lightmaps(bsp_m_lightmaps: &Vec<Image>, bsp_faces_len: usize, bsp_face_tex_coords: &Vec<FaceTexCoords>, renderer: &Box<dyn Renderer>) -> Result<(Vec<Vec<glm::Vec2>>, Box<dyn Texture>)> {
+        let mut atlas: TextureAtlas = TextureAtlas::new(1024, 1024, 3);
+        let mut lm_positions: Vec<glm::UVec2> = Vec::with_capacity(bsp_m_lightmaps.len());
+        for lm in bsp_m_lightmaps.iter() {
+            if lm.width == 0 || lm.height == 0 {
+                lm_positions.push(glm::uvec2(0, 0));
+                continue;
+            }
+            lm_positions.push(atlas.store(lm)?);
+        }
+        atlas.m_image.save("lm_atlas.pmg".to_string());
+        let mut lm_coords: Vec<Vec<glm::Vec2>> = Vec::with_capacity(bsp_faces_len);
+        for i in 0..lm_coords.capacity() {
+            let coords: &FaceTexCoords = &bsp_face_tex_coords[i];
+            let sub_coords: Vec<glm::Vec2> = coords.lightmap_coords.iter()
+                .map(|coord| atlas.convert_coord(
+                    &bsp_m_lightmaps[i],
+                    lm_positions[i],
+                    coord.clone(),
+                )).collect();
+            lm_coords.push(sub_coords);
+        }
+        let m_lightmap_atlas: Box<dyn Texture> = renderer.create_texture(&vec![&atlas.m_image]);
+        return Ok((lm_coords, m_lightmap_atlas));
     }
 
     fn render_skybox(&self) {
