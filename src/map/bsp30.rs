@@ -302,7 +302,7 @@ impl Resource for Edge {
 
 pub struct Face {
     pub plane_index: u16,
-    pub plane_size: u16,
+    pub plane_side: u16,
     pub first_edge_index: u32,
     pub edge_count: u16,
     pub texture_info: u16,
@@ -316,7 +316,7 @@ impl Resource for Face {
 
     fn from_reader(reader: &mut BufReader<impl byteorder::ReadBytesExt>) -> Result<Self> {
         let plane_index: u16 = reader.read_u16::<Self::T>()?;
-        let plane_size: u16 = reader.read_u16::<Self::T>()?;
+        let plane_side: u16 = reader.read_u16::<Self::T>()?;
         let first_edge_index: u32 = reader.read_u32::<Self::T>()?;
         let edge_count: u16 = reader.read_u16::<Self::T>()?;
         let texture_info: u16 = reader.read_u16::<Self::T>()?;
@@ -329,7 +329,7 @@ impl Resource for Face {
         let lightmap_offset: u32 = reader.read_u32::<Self::T>()?;
         return Ok(Face {
             plane_index,
-            plane_size,
+            plane_side,
             first_edge_index,
             edge_count,
             texture_info,

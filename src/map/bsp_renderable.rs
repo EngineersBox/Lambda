@@ -6,17 +6,44 @@ use crate::rendering::renderer::{Renderer,Texture,InputLayout,Buffer,FaceRenderI
 use crate::rendering::renderable::{Renderable,RenderSettings};
 use crate::rendering::view::camera::Camera;
 use crate::map::bsp::{BSP,FaceTexCoords};
+use crate::map::bsp30;
 use crate::map::wad::MipmapTexture;
 use crate::resource::image::Image;
 
+#[derive(Clone, Copy)]
 pub struct Vertex {
     pub position: glm::Vec3,
     pub normal: glm::Vec3,
-    pub tex_coord: glm::Vec3,
+    pub tex_coord: glm::Vec2,
 }
 
+impl Default for Vertex {
+
+    fn default() -> Self {
+        return Self {
+            position: glm::vec3(0.0, 0.0, 0.0),
+            normal: glm::vec3(0.0, 0.0, 0.0),
+            tex_coord: glm::vec2(0.0, 0.0),
+        };
+    }
+
+}
+
+#[derive(Clone, Copy)]
 pub struct VertexWithLM {
+    pub vertex: Vertex,
     pub lightmap_coord: glm::Vec2,
+}
+
+impl Default for VertexWithLM {
+    
+    fn default() -> Self {
+        return Self {
+            vertex: Vertex::default(),
+            lightmap_coord: glm::vec2(0.0, 0.0),
+        };
+    }
+
 }
 
 pub struct TextureAtlas {
@@ -171,7 +198,49 @@ impl BSPRenderable {
         todo!()
     }
 
-    fn build_buffers(lm_coords: &Vec<Vec<glm::Vec2>>) {
+    fn build_buffers(lm_coords: &Vec<Vec<glm::Vec2>>,
+                     renderer: Box<dyn Renderer>,
+                     bsp_faces: &Vec<bsp30::Face>,
+                     bsp_face_tex_coords: &Vec<FaceTexCoords>,
+                     bsp_planes: &Vec<bsp30::Plane>,
+                     bsp_surface_edges:& Vec<bsp30::SurfaceEdge>,
+                     bsp_vertices: &Vec<bsp30::Vertex>,
+                     bsp_edges: &Vec<bsp30::Edge>) {
+        let mut vertices: Vec<VertexWithLM> = Vec::new();
+        for (face_index, face) in bsp_faces.iter().enumerate() {
+            let coords: &FaceTexCoords = &bsp_face_tex_coords[face_index];
+            let first_index: usize = vertices.len();
+            for i in 0..face.edge_count as usize {
+                if i > 2 {
+                    let first: VertexWithLM = vertices[i].clone();
+                    let prev: VertexWithLM = vertices.last().unwrap().clone();
+                    vertices.push(first);
+                    vertices.push(prev);
+                }
+                let mut v: VertexWithLM = VertexWithLM::default();
+                v.vertex.tex_coord = coords.tex_coords[i].clone();
+                v.lightmap_coord = if lm_coords[face_index].is_empty() {
+                    glm::vec2(0.0, 0.0)
+                } else {
+                    lm_coords[face_index][i].clone()
+                };
+                v.vertex.normal = bsp_planes[face.plane_index as usize].normal.clone();
+                if face.plane_side != 0 {
+                    v.vertex.normal = -v.vertex.normal;
+                }
+                let edge: bsp30::SurfaceEdge = bsp_surface_edges[face.first_edge_index as usize + i];
+                if edge > 0 {
+                    v.vertex.position = bsp_vertices[bsp_edges[edge as usize].vertex_index[0] as usize].clone();
+                } else {
+                    v.vertex.position = bsp_vertices[bsp_edges[-edge as usize].vertex_index[1] as usize].clone();
+                }
+                vertices.push(v);
+            }
+        }
+        let m_static_geometry_vbo = renderer.create_buffer(
+            vertices.len() * std::mem::size_of::<VertexWithLM>(),
+            &vertices[..],
+        );
         todo!()
     }
 
