@@ -8,8 +8,9 @@ mod rendering;
 mod core;
 mod input;
 
+#[macro_use]
 extern crate glium;
-extern crate glm;
+extern crate nalgebra_glm as glm;
 extern crate bit_set;
 extern crate byteorder;
 extern crate bitter;

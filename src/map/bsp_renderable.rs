@@ -12,39 +12,47 @@ use crate::resource::image::Image;
 
 #[derive(Clone, Copy)]
 pub struct Vertex {
-    pub position: glm::Vec3,
-    pub normal: glm::Vec3,
-    pub tex_coord: glm::Vec2,
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub tex_coord: [f32; 2],
 }
 
 impl Default for Vertex {
 
     fn default() -> Self {
         return Self {
-            position: glm::vec3(0.0, 0.0, 0.0),
-            normal: glm::vec3(0.0, 0.0, 0.0),
-            tex_coord: glm::vec2(0.0, 0.0),
+            position: [0.0, 0.0, 0.0],
+            normal: [0.0, 0.0, 0.0],
+            tex_coord: [0.0, 0.0],
         };
     }
 
 }
 
+implement_vertex!(Vertex, position, normal, tex_coord);
+
 #[derive(Clone, Copy)]
 pub struct VertexWithLM {
-    pub vertex: Vertex,
-    pub lightmap_coord: glm::Vec2,
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub tex_coord: [f32; 2],
+    pub lightmap_coord: [f32; 2],
 }
 
 impl Default for VertexWithLM {
     
     fn default() -> Self {
         return Self {
-            vertex: Vertex::default(),
-            lightmap_coord: glm::vec2(0.0, 0.0),
+            position: [0.0, 0.0, 0.0],
+            normal: [0.0, 0.0, 0.0],
+            tex_coord: [0.0, 0.0],
+            lightmap_coord: [0.0, 0.0],
         };
     }
 
 }
+
+implement_vertex!(VertexWithLM, position, normal, tex_coord, lightmap_coord);
 
 pub struct TextureAtlas {
     allocated: Vec<usize>,
@@ -84,7 +92,7 @@ impl TextureAtlas {
     }
 
     fn alloc_lightmap(&mut self, lm_width: usize, lm_height: usize) -> Option<glm::UVec2> {
-        let mut pos: glm::UVec2 = glm::uvec2(0, 0);
+        let mut pos: glm::UVec2 = glm::vec2(0u32, 0u32);
         let mut best: usize = self.m_image.height;
         for i in 0..(self.m_image.width - lm_width) {
             let mut best2: usize = 0;
@@ -161,7 +169,7 @@ impl BSPRenderable {
         let mut lm_positions: Vec<glm::UVec2> = Vec::with_capacity(bsp_m_lightmaps.len());
         for lm in bsp_m_lightmaps.iter() {
             if lm.width == 0 || lm.height == 0 {
-                lm_positions.push(glm::uvec2(0, 0));
+                lm_positions.push(glm::vec2(0u32, 0u32));
                 continue;
             }
             lm_positions.push(atlas.store(lm)?);
@@ -218,30 +226,26 @@ impl BSPRenderable {
                     vertices.push(prev);
                 }
                 let mut v: VertexWithLM = VertexWithLM::default();
-                v.vertex.tex_coord = coords.tex_coords[i].clone();
+                v.tex_coord = coords.tex_coords[i].clone();
                 v.lightmap_coord = if lm_coords[face_index].is_empty() {
                     glm::vec2(0.0, 0.0)
                 } else {
                     lm_coords[face_index][i].clone()
                 };
-                v.vertex.normal = bsp_planes[face.plane_index as usize].normal.clone();
+                v.normal = bsp_planes[face.plane_index as usize].normal.clone();
                 if face.plane_side != 0 {
-                    v.vertex.normal = -v.vertex.normal;
+                    v.normal = -v.normal;
                 }
                 let edge: bsp30::SurfaceEdge = bsp_surface_edges[face.first_edge_index as usize + i];
                 if edge > 0 {
-                    v.vertex.position = bsp_vertices[bsp_edges[edge as usize].vertex_index[0] as usize].clone();
+                    v.position = bsp_vertices[bsp_edges[edge as usize].vertex_index[0] as usize].clone();
                 } else {
-                    v.vertex.position = bsp_vertices[bsp_edges[-edge as usize].vertex_index[1] as usize].clone();
+                    v.position = bsp_vertices[bsp_edges[-edge as usize].vertex_index[1] as usize].clone();
                 }
                 vertices.push(v);
             }
         }
-        let m_static_geometry_vbo = renderer.create_buffer(
-            vertices.len() * std::mem::size_of::<VertexWithLM>(),
-            &vertices[..], // TODO: Convert to buffer data format to consume in renderer
-                           // implementation
-        );
+        let m_static_geometry_vbo = renderer.create_buffer(&vertices[..],);
         todo!()
     }
 

@@ -1,4 +1,5 @@
 use std::boxed::Box;
+use glium::vertex::Vertex;
 
 use crate::resource::image::Image;
 use crate::rendering::renderable::RenderSettings;
@@ -40,7 +41,7 @@ pub trait Renderer {
     fn clear(&self);
     fn create_texture(&self, mipmaps: &Vec<&Image>) -> Box<dyn Texture>;
     fn create_cube_texture(&self, sides: [Image; 6]) -> Box<dyn Texture>;
-    fn create_buffer(&self, size: usize, data: &[u8]) -> Box<dyn Buffer>;
+    fn create_buffer(&self, data: &[dyn Vertex]) -> Box<dyn Buffer>;
     fn create_input_layout(&self, buffer: &dyn Buffer, layout: &Vec<AttributeLayout>) -> dyn InputLayout;
     fn render_coords(&self, matrix: &glm::Mat4);
     fn render_skybox(&self, cubemap: &dyn Texture, matrix: &glm::Mat4);
@@ -57,7 +58,7 @@ pub trait Renderer {
 
 pub trait Platform {
     fn create_window_and_context(&self, width: usize, height: usize, title: String, monitor: usize) -> glium::Display;
-    fn create_renderer(&self) -> dyn Renderer;
+    fn create_renderer() -> Box<dyn Renderer>;
     fn swap_buffers(&self);
 }
 
