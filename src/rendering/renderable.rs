@@ -1,3 +1,4 @@
+#[derive(Default, Debug, Clone, Copy)]
 pub struct RenderSettings {
     pub projection: glm::Mat4,
     pub pitch: f32,

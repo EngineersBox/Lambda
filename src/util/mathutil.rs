@@ -6,5 +6,5 @@ pub fn point_in_box(point: glm::Vec3, min: glm::Vec3, max: glm::Vec3) -> bool {
 }
 
 pub fn point_in_plane(point: glm::Vec3, normal: glm::Vec3, dist: f32) -> bool {
-    return (glm::dot(point, normal) - dist).abs() < EPSILON;
+    return (glm::dot(&point, &normal) - dist).abs() < EPSILON;
 }

@@ -1,11 +1,12 @@
 use std::boxed::Box;
 use std::io::{Result, Error, ErrorKind};
 use bit_set::BitSet;
+use glium::vertex::{VertexBuffer, BufferCreationError};
 
 use crate::rendering::renderer::{Renderer,Texture,InputLayout,Buffer,FaceRenderInfo};
 use crate::rendering::renderable::{Renderable,RenderSettings};
 use crate::rendering::view::camera::Camera;
-use crate::map::bsp::{BSP,FaceTexCoords};
+use crate::map::bsp::{BSP,Decal,FaceTexCoords};
 use crate::map::bsp30;
 use crate::map::wad::MipmapTexture;
 use crate::resource::image::Image;
@@ -88,7 +89,8 @@ impl TextureAtlas {
     }
 
     pub fn convert_coord(&self, image: &Image, stored_pos: glm::UVec2, coord: glm::Vec2) -> glm::Vec2 {
-        return (glm::vec2(stored_pos.x as f32, stored_pos.y as f32) + coord * glm::vec2(image.width as f32, image.height as f32)) / glm::vec2(self.m_image.width as f32, self.m_image.height as f32);
+        return (glm::vec2(stored_pos.x as f32, stored_pos.y as f32) + glm::vec2(image.width as f32, image.height as f32).component_mul(&coord))
+            .component_div(&glm::vec2(self.m_image.width as f32, self.m_image.height as f32));
     }
 
     fn alloc_lightmap(&mut self, lm_width: usize, lm_height: usize) -> Option<glm::UVec2> {
@@ -130,10 +132,8 @@ pub struct BSPRenderable {
     m_skybox_tex: Option<Box<dyn Texture>>,
     m_textures: Vec<Box<dyn Texture>>,
     m_lightmap_atlas: Box<dyn Texture>,
-    m_static_geometry_vbo: Box<dyn Buffer>,
-    m_decal_vbo: Box<dyn Buffer>,
-    m_static_geometry_vao: Box<dyn InputLayout>,
-    m_decal_vao: Box<dyn InputLayout>,
+    m_static_geometry_vbo: VertexBuffer<VertexWithLM>,
+    m_decal_vbo: VertexBuffer<Vertex>,
     vertex_offsets: Vec<usize>,
     faces_drawn: Vec<bool>,
 }
@@ -150,7 +150,30 @@ impl BSPRenderable {
             &bsp.face_tex_coords,
             &renderer,
         )?;
-        todo!()
+        let (m_static_geometry_vbo, m_decal_vbo): (VertexBuffer<VertexWithLM>, VertexBuffer<Vertex>) = BSPRenderable::build_buffers(
+            &lm_coords,
+            &renderer,
+            &bsp.faces,
+            &bsp.face_tex_coords,
+            &bsp.planes,
+            &bsp.surface_edges,
+            &bsp.vertices,
+            &bsp.edges,
+            &bsp.m_decals,
+        )?;
+        let faces_drawn: Vec<bool> = Vec::with_capacity(bsp.faces.len());
+        return Ok(BSPRenderable {
+            m_renderer: renderer, // TODO: Change to Box<Rc<Renderer>> and create a new reference here
+            m_bsp: bsp, // TODO: Same here with Box<Rc<BSP>>
+            m_settings: Box::new(RenderSettings::default()),
+            m_skybox_tex,
+            m_textures,
+            m_lightmap_atlas,
+            m_static_geometry_vbo,
+            m_decal_vbo,
+            vertex_offsets: Vec::new(),
+            faces_drawn,
+        });
     }
 
     fn load_textures(renderer: &Box<dyn Renderer>, bsp_m_textures: &Vec<MipmapTexture>) -> Vec<Box<dyn Texture>> {
@@ -207,23 +230,23 @@ impl BSPRenderable {
     }
 
     fn build_buffers(lm_coords: &Vec<Vec<glm::Vec2>>,
-                     renderer: Box<dyn Renderer>,
+                     renderer: &Box<dyn Renderer>,
                      bsp_faces: &Vec<bsp30::Face>,
                      bsp_face_tex_coords: &Vec<FaceTexCoords>,
                      bsp_planes: &Vec<bsp30::Plane>,
                      bsp_surface_edges:& Vec<bsp30::SurfaceEdge>,
                      bsp_vertices: &Vec<bsp30::Vertex>,
-                     bsp_edges: &Vec<bsp30::Edge>) {
-        let mut vertices: Vec<VertexWithLM> = Vec::new();
+                     bsp_edges: &Vec<bsp30::Edge>,
+                     bsp_decals: &Vec<Decal>) -> Result<(VertexBuffer<VertexWithLM>, VertexBuffer<Vertex>)> {
+        let mut static_vertices: Vec<VertexWithLM> = Vec::new();
         for (face_index, face) in bsp_faces.iter().enumerate() {
             let coords: &FaceTexCoords = &bsp_face_tex_coords[face_index];
-            let first_index: usize = vertices.len();
             for i in 0..face.edge_count as usize {
                 if i > 2 {
-                    let first: VertexWithLM = vertices[i].clone();
-                    let prev: VertexWithLM = vertices.last().unwrap().clone();
-                    vertices.push(first);
-                    vertices.push(prev);
+                    let first: VertexWithLM = static_vertices[i].clone();
+                    let prev: VertexWithLM = static_vertices.last().unwrap().clone();
+                    static_vertices.push(first);
+                    static_vertices.push(prev);
                 }
                 let mut v: VertexWithLM = VertexWithLM::default();
                 v.tex_coord = coords.tex_coords[i].clone().into();
@@ -242,11 +265,39 @@ impl BSPRenderable {
                 } else {
                     v.position = bsp_vertices[bsp_edges[-edge as usize].vertex_index[1] as usize].clone().into();
                 }
-                vertices.push(v);
+                static_vertices.push(v);
             }
         }
-        let m_static_geometry_vbo = renderer.create_buffer(&vertices[..],);
-        todo!()
+        let m_static_geometry_vbo: VertexBuffer<VertexWithLM> = match VertexBuffer::new(renderer.provide_facade(), &static_vertices[..]) {
+            Ok(buf) => buf,
+            Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Cannot create static and brush geometry: {}", error))),
+        };
+        let mut decal_vertices: Vec<Vertex> = Vec::new();
+        for decal in bsp_decals.iter() {
+            for i in 0..6 {
+                let mut vertex: Vertex = Vertex::default();
+                vertex.normal = decal.normal.clone().into();
+                if i == 0 || i == 3 {
+                    vertex.position = decal.vec[0].clone().into();
+                    vertex.tex_coord = [0.0, 0.0];
+                } else if i == 1 {
+                    vertex.position = decal.vec[1].clone().into();
+                    vertex.tex_coord = [1.0, 0.0];
+                } else if i == 2 || i == 4 {
+                    vertex.position = decal.vec[2].clone().into();
+                    vertex.tex_coord = [1.0, 1.0];
+                } else if i == 5 {
+                    vertex.position = decal.vec[3].clone().into();
+                    vertex.tex_coord = [0.0, 1.0];
+                }
+                decal_vertices.push(vertex);
+            }
+        }
+        let m_decal_vbo: VertexBuffer<Vertex> = match VertexBuffer::new(renderer.provide_facade(), &decal_vertices[..]) {
+            Ok(buf) => buf,
+            Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Cannot create decal VBO: {}", error))),
+        };
+        return Ok((m_static_geometry_vbo, m_decal_vbo));
     }
 
 }

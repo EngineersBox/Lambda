@@ -452,22 +452,22 @@ impl BSP {
                 let mut edge_index: i32 = self.surface_edges[self.faces[i].texture_info as usize + j];
                 if edge_index > 0 {
                     self.face_tex_coords[i].tex_coords[j].x = (glm::dot(
-                        self.vertices[self.edges[edge_index as usize].vertex_index[0] as usize],
-                        cur_tex_info.s
+                        &self.vertices[self.edges[edge_index as usize].vertex_index[0] as usize],
+                        &cur_tex_info.s
                     ) + cur_tex_info.s_shift) / self.mip_textures[cur_tex_info.mip_tex_index as usize].width as f32;
                     self.face_tex_coords[i].tex_coords[j].y = (glm::dot(
-                        self.vertices[self.edges[edge_index as usize].vertex_index[0] as usize],
-                        cur_tex_info.t
+                        &self.vertices[self.edges[edge_index as usize].vertex_index[0] as usize],
+                        &cur_tex_info.t
                     ) + cur_tex_info.t_shift) / self.mip_textures[cur_tex_info.mip_tex_index as usize].height as f32;
                 } else {
                     edge_index *= -1;
                     self.face_tex_coords[i].tex_coords[j].x = (glm::dot(
-                        self.vertices[self.edges[edge_index as usize].vertex_index[1] as usize],
-                        cur_tex_info.s
+                        &self.vertices[self.edges[edge_index as usize].vertex_index[1] as usize],
+                        &cur_tex_info.s
                     ) + cur_tex_info.s_shift) / self.mip_textures[cur_tex_info.mip_tex_index as usize].width as f32;
                     self.face_tex_coords[i].tex_coords[j].y = (glm::dot(
-                        self.vertices[self.edges[edge_index as usize].vertex_index[1] as usize],
-                        cur_tex_info.t
+                        &self.vertices[self.edges[edge_index as usize].vertex_index[1] as usize],
+                        &cur_tex_info.t
                     ) + cur_tex_info.t_shift) / self.mip_textures[cur_tex_info.mip_tex_index as usize].height as f32;
                 }
             }
@@ -541,7 +541,7 @@ impl BSP {
                 } else {
                     vertex = self.vertices[self.edges[(-edge_index) as usize].vertex_index[1] as usize];
                 }
-                if !point_in_plane(origin, normal, glm::dot(normal, vertex)) {
+                if !point_in_plane(origin, normal, glm::dot(&normal, &vertex)) {
                     continue;
                 }
                 let tex_name: Option<&String> = info_decal.find_property(&"texture".to_string());
@@ -606,14 +606,14 @@ impl BSP {
                 } else {
                     self.vertices[self.edges[(-edge_index) as usize].vertex_index[1] as usize]
                 };
-                let f_u: f32 = glm::dot(tex_info.s, vertex) + tex_info.s_shift;
+                let f_u: f32 = glm::dot(&tex_info.s, &vertex) + tex_info.s_shift;
                 if f_u < f_min_u {
                     f_min_u = f_u;
                 }
                 if f_u > f_max_u {
                     f_max_u = f_u;
                 }
-                let f_v: f32 = glm::dot(tex_info.t, vertex) + tex_info.t_shift;
+                let f_v: f32 = glm::dot(&tex_info.t, &vertex) + tex_info.t_shift;
                 if f_v < f_min_v {
                     f_min_v = f_v;
                 }
@@ -639,8 +639,8 @@ impl BSP {
                 } else {
                     self.vertices[self.edges[(-edge_index) as usize].vertex_index[1] as usize]
                 };
-                let f_u: f32 = glm::dot(tex_info.s, vertex) + tex_info.s_shift;
-                let f_v: f32 = glm::dot(tex_info.t, vertex) + tex_info.t_shift;
+                let f_u: f32 = glm::dot(&tex_info.s, &vertex) + tex_info.s_shift;
+                let f_v: f32 = glm::dot(&tex_info.t, &vertex) + tex_info.t_shift;
                 let f_lightmap_u: f32 = f_mid_tex_u + (f_u - f_mid_poly_u) / 16.0;
                 let f_lightmap_v: f32 = f_mid_tex_v + (f_v + f_mid_poly_v) / 16.0;
                 self.face_tex_coords[i].lightmap_coords[j].x = f_lightmap_u / n_width as f32;

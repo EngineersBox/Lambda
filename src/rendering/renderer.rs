@@ -54,7 +54,7 @@ pub trait Renderer {
                      lightmaps_atlas: &dyn Texture,
                      settings: &RenderSettings);
     fn render_imgui(&self, data: &imgui::DrawData);
-    fn provide_facade(&self) -> dyn Facade;
+    fn provide_facade(&self) -> &dyn Facade;
     fn screenshot(&self) -> Image;
 }
 
