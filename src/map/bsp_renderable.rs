@@ -226,21 +226,21 @@ impl BSPRenderable {
                     vertices.push(prev);
                 }
                 let mut v: VertexWithLM = VertexWithLM::default();
-                v.tex_coord = coords.tex_coords[i].clone();
+                v.tex_coord = coords.tex_coords[i].clone().into();
                 v.lightmap_coord = if lm_coords[face_index].is_empty() {
-                    glm::vec2(0.0, 0.0)
+                    [0.0, 0.0]
                 } else {
-                    lm_coords[face_index][i].clone()
+                    lm_coords[face_index][i].clone().into()
                 };
-                v.normal = bsp_planes[face.plane_index as usize].normal.clone();
+                v.normal = bsp_planes[face.plane_index as usize].normal.clone().into();
                 if face.plane_side != 0 {
-                    v.normal = -v.normal;
+                    v.normal = [-v.normal[0], -v.normal[1], -v.normal[2]];
                 }
                 let edge: bsp30::SurfaceEdge = bsp_surface_edges[face.first_edge_index as usize + i];
                 if edge > 0 {
-                    v.position = bsp_vertices[bsp_edges[edge as usize].vertex_index[0] as usize].clone();
+                    v.position = bsp_vertices[bsp_edges[edge as usize].vertex_index[0] as usize].clone().into();
                 } else {
-                    v.position = bsp_vertices[bsp_edges[-edge as usize].vertex_index[1] as usize].clone();
+                    v.position = bsp_vertices[bsp_edges[-edge as usize].vertex_index[1] as usize].clone().into();
                 }
                 vertices.push(v);
             }
