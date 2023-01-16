@@ -205,30 +205,30 @@ impl BSP {
         let mut entity_buffer: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].length as usize);
         reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpEntities as usize].offset as u64))?;
         for _ in 0..entity_buffer.capacity() {
-            entity_buffer.push(reader.read_u8().unwrap());
+            entity_buffer.push(reader.read_u8()?);
         }
-        bsp.entities = BSP::parse_entities(&String::from_utf8(entity_buffer).unwrap());
+        bsp.entities = BSP::parse_entities(&String::from_utf8(entity_buffer)?);
         debug!(&crate::LOGGER, "Parsed entities");
         // Textures
         bsp.texture_infos = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
         reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].offset as u64))?;
         for _ in 0..bsp.texture_infos.capacity() {
-            bsp.texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader).unwrap());
+            bsp.texture_infos.push(bsp30::TextureInfo::from_reader(&mut reader)?);
         }
         debug!(&crate::LOGGER, "Read texture infos");
         reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64))?;
-        bsp.texture_header = bsp30::TextureHeader::from_reader(&mut reader).unwrap();
+        bsp.texture_header = bsp30::TextureHeader::from_reader(&mut reader)?;
         println!("Texture header: {:?}", bsp.texture_header);
         debug!(&crate::LOGGER, "Read texture header");
         bsp.mip_textures = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
         bsp.mip_texture_offsets = Vec::with_capacity(bsp.texture_header.mip_texture_count as usize);
         for _ in 0..bsp.mip_texture_offsets.capacity() {
-            bsp.mip_texture_offsets.push(bsp30::MipTexOffset::from_reader(&mut reader).unwrap());
+            bsp.mip_texture_offsets.push(bsp30::MipTexOffset::from_reader(&mut reader)?);
         }
         debug!(&crate::LOGGER, "Read mip texture offsets");
         for i in 0..bsp.mip_textures.capacity() {
             reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpTextures as usize].offset as u64 + bsp.mip_texture_offsets[i] as u64))?;
-            bsp.mip_textures.push(bsp30::MipTex::from_reader(&mut reader).unwrap());
+            bsp.mip_textures.push(bsp30::MipTex::from_reader(&mut reader)?);
         }
         debug!(&crate::LOGGER, "Read mip textures");
         bsp.load_textures(&mut reader);
@@ -240,7 +240,7 @@ impl BSP {
             let mut p_lightmap_data: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpLighting as usize].length as usize);
             reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpLighting as usize].offset as u64))?;
             for _ in 0..p_lightmap_data.capacity() {
-                p_lightmap_data.push(reader.read_u8().unwrap());
+                p_lightmap_data.push(reader.read_u8()?);
             }
             bsp.load_light_maps(p_lightmap_data);
             debug!(&crate::LOGGER, "Loaded lightmaps")
@@ -255,7 +255,7 @@ impl BSP {
             let mut compressed_vis: Vec<u8> = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].length as usize);
             reader.seek(SeekFrom::Start(bsp.header.lump[bsp30::LumpType::LumpVisibility as usize].offset as u64))?;
             for _ in 0..compressed_vis.capacity() {
-                compressed_vis.push(reader.read_u8().unwrap());
+                compressed_vis.push(reader.read_u8()?);
             }
             let count: usize = bsp.count_vis_leaves(0);
             info!(&crate::LOGGER, "Decompressing visibility list with {} leaves", count);
@@ -307,7 +307,7 @@ impl BSP {
             &mut bsp.brush_entities,
             |i: &usize| -> bool {
             if let Some(sz_render_mode_1) = bsp.entities[*i].find_property(&"rendermode".to_string()) {
-                if sz_render_mode_1.parse::<usize>().unwrap() == bsp30::RenderMode::RenderModeTexture as usize {
+                if sz_render_mode_1.parse::<usize>()? == bsp30::RenderMode::RenderModeTexture as usize {
                     return true;
                 }
             }
