@@ -249,15 +249,29 @@ impl BSPRenderable {
         );
     }
 
-    fn render_static_geometry(&self, pos: glm::Vec3) -> Vec<FaceRenderInfo> {
-        todo!()
+    fn render_static_geometry(&self, pos: glm::Vec3,
+                              leaf: Option<i16>,
+                              bsp_vis_lists: &Vec<BitSet<u8>>) -> Vec<FaceRenderInfo> {
+        let face_render_infos: Vec<FaceRenderInfo> = Vec::new();
+        let vis_list: &BitSet<u8> = if leaf.is_none() || bsp_vis_lists.is_empty() {
+            &BitSet::<u8>::default()
+        } else {
+            &bsp_vis_lists[leaf.unwrap() as usize - 1]
+        };
+        self.render_bsp(
+            0,
+            vis_list,
+            pos,
+            &face_render_infos,
+        );
+        return face_render_infos;
     }
 
     fn render_leaf(&self, leaf_index: isize, face_render_info: &Vec<FaceRenderInfo>) {
         todo!()
     }
 
-    fn render_bsp(&self, node: isize, vis_list: BitSet<u8>, pos: glm::Vec3, face_render_info: Vec<FaceRenderInfo>) {
+    fn render_bsp(&self, node: isize, vis_list: &BitSet<u8>, pos: glm::Vec3, face_render_info: &Vec<FaceRenderInfo>) {
         todo!()
     }
 
