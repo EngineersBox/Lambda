@@ -1,9 +1,9 @@
 use std::boxed::Box;
 use std::io::{Result, Error, ErrorKind};
 use bit_set::BitSet;
-use glium::vertex::{VertexBuffer, BufferCreationError};
+use glium::vertex::VertexBuffer;
 
-use crate::rendering::renderer::{Renderer,Texture,InputLayout,Buffer,FaceRenderInfo};
+use crate::rendering::renderer::{Renderer,Texture,FaceRenderInfo};
 use crate::rendering::renderable::{Renderable,RenderSettings};
 use crate::rendering::view::camera::Camera;
 use crate::map::bsp::{BSP,Decal,FaceTexCoords};
