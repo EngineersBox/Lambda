@@ -307,7 +307,7 @@ impl BSP {
             &mut bsp.brush_entities,
             |i: &usize| -> bool {
             if let Some(sz_render_mode_1) = bsp.entities[*i].find_property(&"rendermode".to_string()) {
-                if sz_render_mode_1.parse::<usize>()? == bsp30::RenderMode::RenderModeTexture as usize {
+                if sz_render_mode_1.parse::<usize>().unwrap() == bsp30::RenderMode::RenderModeTexture as usize {
                     return true;
                 }
             }
