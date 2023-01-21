@@ -213,19 +213,65 @@ impl BSPRenderable {
         return Ok((lm_coords, m_lightmap_atlas));
     }
 
-    fn render_skybox(&self) {
-        todo!()
+    fn render_skybox(&self, renderer: &Box<dyn Renderer>, m_settings: &RenderSettings, m_skybox_tex: &dyn Texture) {
+        let matrix: glm::Mat4 = m_settings.projection * BSPRenderable::euler_angle_xzx(
+            (m_settings.pitch - 90.0).to_radians(),
+            (-m_settings.yaw).to_radians(),
+            90.0f32.to_radians(),
+        );
+        renderer.render_skybox(m_skybox_tex, &matrix);
     }
 
-    fn render_static_geometry(&self, pos: glm::Vec3) -> Vec<FaceRenderInfo> {
-        todo!()
+    fn euler_angle_xzx(t1: f32, t2: f32, t3: f32) -> glm::Mat4 {
+        let c1: f32 = t1.cos();
+        let s1: f32 = t1.sin();
+        let c2: f32 = t2.cos();
+        let s2: f32 = t2.sin();
+        let c3: f32 = t3.cos();
+        let s3: f32 = t3.sin();
+        return glm::mat4(
+             c2,
+             c1 * s2,
+             s1 * s2,
+             0.0,
+             -c3 * s2,
+             c1 * c2 * c3 - s1 * s3,
+             c1 * s3 + c2 * c3 * s1,
+             0.0,
+             s2 * s3,
+             -c3 * s1 - c1 * c2 * s3,
+             c1 * c3 - c2 * s1 * s3,
+             0.0,
+             0.0,
+             0.0,
+             0.0,
+             1.0,
+        );
+    }
+
+    fn render_static_geometry(&self, pos: glm::Vec3,
+                              leaf: Option<i16>,
+                              bsp_vis_lists: &Vec<BitSet<u8>>) -> Vec<FaceRenderInfo> {
+        let face_render_infos: Vec<FaceRenderInfo> = Vec::new();
+        let vis_list: &BitSet<u8> = if leaf.is_none() || bsp_vis_lists.is_empty() {
+            &BitSet::<u8>::default()
+        } else {
+            &bsp_vis_lists[leaf.unwrap() as usize - 1]
+        };
+        self.render_bsp(
+            0,
+            vis_list,
+            pos,
+            &face_render_infos,
+        );
+        return face_render_infos;
     }
 
     fn render_leaf(&self, leaf_index: isize, face_render_info: &Vec<FaceRenderInfo>) {
         todo!()
     }
 
-    fn render_bsp(&self, node: isize, vis_list: BitSet<u8>, pos: glm::Vec3, face_render_info: Vec<FaceRenderInfo>) {
+    fn render_bsp(&self, node: isize, vis_list: &BitSet<u8>, pos: glm::Vec3, face_render_info: &Vec<FaceRenderInfo>) {
         todo!()
     }
 
