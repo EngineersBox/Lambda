@@ -267,8 +267,36 @@ impl BSPRenderable {
         return face_render_infos;
     }
 
-    fn render_leaf(&self, leaf_index: isize, face_render_info: &Vec<FaceRenderInfo>) {
-        todo!()
+    fn render_leaf(&mut self, leaf_index: isize,
+                   use_textures: bool,
+                   face_render_infos: &Vec<FaceRenderInfo>,
+                   bsp_leaves: &Vec<bsp30::Leaf>,
+                   bsp_mark_surfaces: &Vec<bsp30::MarkSurface>,
+                   bsp_faces: &Vec<bsp30::Face>,
+                   bsp_header: &bsp30::Header,
+                   bsp_texture_infos: &Vec<bsp30::TextureInfo>) {
+        for i in 0..bsp_leaves[leaf_index as usize].mark_surface_count as usize {
+            let face_index: usize = bsp_mark_surfaces[bsp_leaves[leaf_index as usize].first_mark_surface as usize + i] as usize;
+            if self.faces_drawn[face_index] {
+                continue;
+            }
+            self.faces_drawn[face_index] = true;
+            let face: &bsp30::Face = &bsp_faces[face_index];
+            if face.styles[0] == 0xFF {
+                continue;
+            }
+            let lightmap_available: bool = (face.lightmap_offset as isize)  != -1 && bsp_header.lump[bsp30::LumpType::LumpLighting as usize].length > 0;
+            let face_render_info: FaceRenderInfo = FaceRenderInfo {
+                tex: if use_textures {
+                    Some(self.m_textures[bsp_texture_infos[face.texture_info as usize].mip_tex_index as usize])
+                } else {
+                    None
+                },
+                offset: self.vertex_offsets[face_index],
+                count: (face.edge_count as usize - 2) * 3,
+            };
+            face_render_infos.push(face_render_info);
+        }
     }
 
     fn render_bsp(&self, node: isize, vis_list: &BitSet<u8>, pos: glm::Vec3, face_render_info: &Vec<FaceRenderInfo>) {

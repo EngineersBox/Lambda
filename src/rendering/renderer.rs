@@ -12,7 +12,7 @@ pub trait Buffer {}
 pub trait InputLayout {}
 
 pub struct FaceRenderInfo {
-    pub tex: Box<dyn Texture>,
+    pub tex: Option<Box<dyn Texture>>,
     pub offset: usize,
     pub count: usize,
 }
