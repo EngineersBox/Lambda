@@ -202,7 +202,7 @@ impl BSPRenderable {
         for i in 0..lm_coords.capacity() {
             let coords: &FaceTexCoords = &bsp_face_tex_coords[i];
             let sub_coords: Vec<glm::Vec2> = coords.lightmap_coords.iter()
-                .map(|coord| atlas.convert_coord(
+                .map(|coord: &glm::Vec2| atlas.convert_coord(
                     &bsp_m_lightmaps[i],
                     lm_positions[i],
                     coord.clone(),
@@ -262,6 +262,7 @@ impl BSPRenderable {
             0,
             vis_list,
             pos,
+            true, // TODO: Make this into a method parameter
             &face_render_infos,
         );
         return face_render_infos;
@@ -299,8 +300,54 @@ impl BSPRenderable {
         }
     }
 
-    fn render_bsp(&self, node: isize, vis_list: &BitSet<u8>, pos: glm::Vec3, face_render_info: &Vec<FaceRenderInfo>) {
-        todo!()
+    fn render_bsp(&mut self, node: isize,
+                  vis_list: &BitSet<u8>,
+                  pos: glm::Vec3,
+                  use_textures: bool,
+                  face_render_infos: &Vec<FaceRenderInfo>) {
+        if node == -1 {
+            return;
+        }
+        if node < 0 {
+            let leaf: isize = !node;
+            if vis_list.is_empty() && !vis_list.into_bit_vec()[leaf as usize - 1] {
+                return;
+            }
+            self.render_leaf(
+                leaf,
+                use_textures,
+                face_render_infos,
+                &self.m_bsp.leaves,
+                &self.m_bsp.mark_surfaces,
+                &self.m_bsp.faces,
+                &self.m_bsp.header,
+                &self.m_bsp.texture_infos,
+            );
+            return;
+        }
+        let plane: bsp30::Plane = self.m_bsp.planes[self.m_bsp.nodes[node as usize].plane_index as usize];
+        let dist: f32 = match plane.r#type {
+            v if v == bsp30::PlaneType::PlaneX as i32 => pos.x - plane.dist,
+            v if v == bsp30::PlaneType::PlaneY as i32 => pos.y - plane.dist,
+            v if v == bsp30::PlaneType::PlaneZ as i32 => pos.z - plane.dist,
+            _ => glm::dot(&plane.normal, &pos) - plane.dist,
+        };
+        let child1: usize = if dist > 0.0 { 1 } else { 0 };
+        let child2: usize = if dist > 0.0 { 0 } else { 1 };
+        self.render_bsp(
+            self.m_bsp.nodes[node as usize].child_index[child1] as isize,
+            vis_list,
+            pos,
+            use_textures,
+            face_render_infos,
+        );
+        self.render_bsp(
+            self.m_bsp.nodes[node as usize].child_index[child1] as isize,
+            vis_list,
+            pos,
+            use_textures,
+            face_render_infos,
+        );
     }
 
     fn build_buffers(lm_coords: &Vec<Vec<glm::Vec2>>,
