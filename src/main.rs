@@ -25,6 +25,9 @@ extern crate std_tools;
 extern crate imgui;
 extern crate imgui_glium_renderer;
 extern crate image;
+#[macro_use]
+extern crate num_derive;
+extern crate num;
 
 use std::panic;
 

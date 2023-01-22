@@ -1,6 +1,6 @@
 use std::boxed::Box;
-use glium::vertex::Vertex;
 use glium::backend::Facade;
+use glium::VertexBuffer;
 
 use crate::resource::image::Image;
 use crate::rendering::renderable::RenderSettings;
@@ -10,6 +10,51 @@ use crate::map::bsp::Decal;
 pub trait Texture {}
 pub trait Buffer {}
 pub trait InputLayout {}
+
+#[derive(Clone, Copy)]
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub tex_coord: [f32; 2],
+}
+
+impl Default for Vertex {
+
+    fn default() -> Self {
+
+        return Self {
+            position: [0.0, 0.0, 0.0],
+            normal: [0.0, 0.0, 0.0],
+            tex_coord: [0.0, 0.0],
+        };
+    }
+
+}
+
+implement_vertex!(Vertex, position, normal, tex_coord);
+
+#[derive(Clone, Copy)]
+pub struct VertexWithLM {
+    pub position: [f32; 3],
+    pub normal: [f32; 3],
+    pub tex_coord: [f32; 2],
+    pub lightmap_coord: [f32; 2],
+}
+
+impl Default for VertexWithLM {
+    
+    fn default() -> Self {
+        return Self {
+            position: [0.0, 0.0, 0.0],
+            normal: [0.0, 0.0, 0.0],
+            tex_coord: [0.0, 0.0],
+            lightmap_coord: [0.0, 0.0],
+        };
+    }
+
+}
+
+implement_vertex!(VertexWithLM, position, normal, tex_coord, lightmap_coord);
 
 pub struct FaceRenderInfo {
     pub tex: Option<Box<dyn Texture>>,
@@ -45,13 +90,13 @@ pub trait Renderer {
     //fn create_buffer(&self, data: &[T]) -> Box<dyn Buffer>;
     //fn create_input_layout(&self, buffer: &dyn Buffer, layout: &Vec<AttributeLayout>) -> dyn InputLayout;
     fn render_coords(&self, matrix: &glm::Mat4);
-    fn render_skybox(&self, cubemap: &dyn Texture, matrix: &glm::Mat4);
+    fn render_skybox(&self, cubemap: &Box<dyn Texture>, matrix: &glm::Mat4);
     fn render_static(&self, entities: &Vec<EntityData>,
                      decals: &Vec<Decal>,
-                     static_layout: &dyn InputLayout,
-                     decal_layout: &dyn InputLayout,
-                     textures: Vec<Box<dyn Texture>>,
-                     lightmaps_atlas: &dyn Texture,
+                     static_layout: &VertexBuffer<VertexWithLM>,
+                     decal_layout: &VertexBuffer<Vertex>,
+                     textures: &Vec<Box<dyn Texture>>,
+                     lightmaps_atlas: &Box<dyn Texture>,
                      settings: &RenderSettings);
     fn render_imgui(&self, data: &imgui::DrawData);
     fn provide_facade(&self) -> &dyn Facade;

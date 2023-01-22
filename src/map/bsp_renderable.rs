@@ -3,57 +3,14 @@ use std::io::{Result, Error, ErrorKind};
 use bit_set::BitSet;
 use glium::vertex::VertexBuffer;
 
-use crate::rendering::renderer::{Renderer,Texture,FaceRenderInfo};
+use crate::rendering::renderer::{Renderer,Texture,FaceRenderInfo,EntityData,Vertex,VertexWithLM};
 use crate::rendering::renderable::{Renderable,RenderSettings};
 use crate::rendering::view::camera::Camera;
 use crate::map::bsp::{BSP,Decal,FaceTexCoords};
 use crate::map::bsp30;
 use crate::map::wad::MipmapTexture;
 use crate::resource::image::Image;
-
-#[derive(Clone, Copy)]
-pub struct Vertex {
-    pub position: [f32; 3],
-    pub normal: [f32; 3],
-    pub tex_coord: [f32; 2],
-}
-
-impl Default for Vertex {
-
-    fn default() -> Self {
-        return Self {
-            position: [0.0, 0.0, 0.0],
-            normal: [0.0, 0.0, 0.0],
-            tex_coord: [0.0, 0.0],
-        };
-    }
-
-}
-
-implement_vertex!(Vertex, position, normal, tex_coord);
-
-#[derive(Clone, Copy)]
-pub struct VertexWithLM {
-    pub position: [f32; 3],
-    pub normal: [f32; 3],
-    pub tex_coord: [f32; 2],
-    pub lightmap_coord: [f32; 2],
-}
-
-impl Default for VertexWithLM {
-    
-    fn default() -> Self {
-        return Self {
-            position: [0.0, 0.0, 0.0],
-            normal: [0.0, 0.0, 0.0],
-            tex_coord: [0.0, 0.0],
-            lightmap_coord: [0.0, 0.0],
-        };
-    }
-
-}
-
-implement_vertex!(VertexWithLM, position, normal, tex_coord, lightmap_coord);
+use crate::scene::entity::Entity;
 
 pub struct TextureAtlas {
     allocated: Vec<usize>,
@@ -128,6 +85,7 @@ impl TextureAtlas {
 pub struct BSPRenderable {
     m_renderer: Box<dyn Renderer>,
     m_bsp: Box<BSP>,
+    m_camera: Box<Camera>,
     m_settings: Box<RenderSettings>,
     m_skybox_tex: Option<Box<dyn Texture>>,
     m_textures: Vec<Box<dyn Texture>>,
@@ -165,6 +123,7 @@ impl BSPRenderable {
         return Ok(BSPRenderable {
             m_renderer: renderer, // TODO: Change to Box<Rc<Renderer>> and create a new reference here
             m_bsp: bsp, // TODO: Same here with Box<Rc<BSP>>
+            m_camera: camera,
             m_settings: Box::new(RenderSettings::default()),
             m_skybox_tex,
             m_textures,
@@ -216,13 +175,89 @@ impl BSPRenderable {
         return Ok((lm_coords, m_lightmap_atlas));
     }
 
-    fn render_skybox(&self, renderer: &Box<dyn Renderer>, m_settings: &RenderSettings, m_skybox_tex: &dyn Texture) {
-        let matrix: glm::Mat4 = m_settings.projection * BSPRenderable::euler_angle_xzx(
-            (m_settings.pitch - 90.0).to_radians(),
-            (-m_settings.yaw).to_radians(),
+    fn render(&mut self, render_settings: &RenderSettings,
+              render_skybox: bool,
+              render_static_bsp: bool,
+              render_brush_entities: bool,
+              render_leaf_outlines: bool,
+              use_textures: bool) {
+        self.m_settings = Box::new(*render_settings);
+        if self.m_skybox_tex.is_some() && render_skybox {
+            self.render_skybox();
+        }
+        let camera_pos: glm::Vec3 = self.m_camera.position();
+        if render_static_bsp || render_brush_entities {
+            self.faces_drawn = self.faces_drawn.iter()
+                .map(|_| false)
+                .collect::<Vec<bool>>();
+        }
+        let entities: Vec<EntityData> = Vec::new();
+        if render_static_bsp {
+            entities.push(EntityData {
+                face_render_info: self.render_static_geometry(
+                    camera_pos.clone(),
+                    self.m_bsp.find_leaf(camera_pos, 0),
+                    &self.m_bsp.vis_lists
+                ),
+                origin: glm::vec3(0.0, 0.0, 0.0),
+                alpha: 1.0,
+                render_mode: bsp30::RenderMode::RenderModeNormal,
+            });
+        }
+        if render_brush_entities {
+            for i in self.m_bsp.brush_entities {
+                let entity: &Entity = &self.m_bsp.entities[i];
+                let model: isize = entity.find_property(&"model".to_string())
+                    .unwrap()[1..]
+                    .parse::<isize>()
+                    .unwrap();
+                let alpha: f32 = if let Some(render_amt) = entity.find_property(&"renderamt".to_string()) {
+                    render_amt.parse::<f32>().unwrap() / 255.0
+                } else {
+                    1.0
+                };
+                let render_mode: bsp30::RenderMode = if let Some(psz_render_mode) = entity.find_property(&"rendermode".to_string()) {
+                    num::FromPrimitive::from_u64(psz_render_mode.parse::<u64>().unwrap()).unwrap()
+                } else {
+                    bsp30::RenderMode::RenderModeNormal
+                };
+                let face_render_infos: Vec<FaceRenderInfo> = Vec::new();
+                self.render_bsp(
+                    self.m_bsp.models[model as usize].model.head_nodes_index[0] as isize,
+                    &BitSet::<u8>::default(),
+                    camera_pos.clone(),
+                    use_textures,
+                    &face_render_infos,
+                );
+                entities.push(EntityData {
+                    face_render_info: face_render_infos,
+                    origin: self.m_bsp.models[model as usize].model.origin.clone(),
+                    alpha,
+                    render_mode,
+                });
+            }
+        }
+        self.m_renderer.render_static(
+            &entities,
+            &self.m_bsp.m_decals,
+            &self.m_static_geometry_vbo,
+            &self.m_decal_vbo,
+            &self.m_textures,
+            &self.m_lightmap_atlas,
+            render_settings,
+        );
+        if render_leaf_outlines {
+            // TODO: Render outlines
+        }
+    }
+
+    fn render_skybox(&self) {
+        let matrix: glm::Mat4 = self.m_settings.projection * BSPRenderable::euler_angle_xzx(
+            (self.m_settings.pitch - 90.0).to_radians(),
+            (-self.m_settings.yaw).to_radians(),
             90.0f32.to_radians(),
         );
-        renderer.render_skybox(m_skybox_tex, &matrix);
+        self.m_renderer.render_skybox(&self.m_skybox_tex.unwrap(), &matrix);
     }
 
     fn euler_angle_xzx(t1: f32, t2: f32, t3: f32) -> glm::Mat4 {

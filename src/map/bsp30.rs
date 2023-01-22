@@ -77,6 +77,7 @@ pub enum PlaneType {
     PlaneAnyZ = 5,
 }
 
+#[derive(num_derive::FromPrimitive,num_derive::ToPrimitive)]
 pub enum RenderMode {
     RenderModeNormal = 0,
     RenderModeColor = 1,
