@@ -187,7 +187,10 @@ impl BSPRenderable {
         return m_textures;
     }
 
-    fn load_lightmaps(bsp_m_lightmaps: &Vec<Image>, bsp_faces_len: usize, bsp_face_tex_coords: &Vec<FaceTexCoords>, renderer: &Box<dyn Renderer>) -> Result<(Vec<Vec<glm::Vec2>>, Box<dyn Texture>)> {
+    fn load_lightmaps(bsp_m_lightmaps: &Vec<Image>,
+                      bsp_faces_len: usize,
+                      bsp_face_tex_coords: &Vec<FaceTexCoords>,
+                      renderer: &Box<dyn Renderer>) -> Result<(Vec<Vec<glm::Vec2>>, Box<dyn Texture>)> {
         let mut atlas: TextureAtlas = TextureAtlas::new(1024, 1024, 3);
         let mut lm_positions: Vec<glm::UVec2> = Vec::with_capacity(bsp_m_lightmaps.len());
         for lm in bsp_m_lightmaps.iter() {
