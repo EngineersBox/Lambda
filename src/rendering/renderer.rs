@@ -42,8 +42,8 @@ pub trait Renderer {
     fn clear(&self);
     fn create_texture(&self, mipmaps: &Vec<&Image>) -> Box<dyn Texture>;
     fn create_cube_texture(&self, sides: [Image; 6]) -> Box<dyn Texture>;
-    // fn create_buffer(&self, data: &[T]) -> Box<dyn Buffer>;
-    // fn create_input_layout(&self, buffer: &dyn Buffer, layout: &Vec<AttributeLayout>) -> dyn InputLayout;
+    //fn create_buffer(&self, data: &[T]) -> Box<dyn Buffer>;
+    //fn create_input_layout(&self, buffer: &dyn Buffer, layout: &Vec<AttributeLayout>) -> dyn InputLayout;
     fn render_coords(&self, matrix: &glm::Mat4);
     fn render_skybox(&self, cubemap: &dyn Texture, matrix: &glm::Mat4);
     fn render_static(&self, entities: &Vec<EntityData>,
