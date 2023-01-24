@@ -31,7 +31,10 @@ extern crate num;
 
 use std::panic;
 
-use glium::{glutin, Surface};
+use glium::{
+    glutin,
+    Surface,
+};
 pub(crate) use lazy_static::lazy_static;
 use slog::Logger;
 
@@ -52,7 +55,7 @@ fn original_main() {
     let event_loop = glutin::event_loop::EventLoop::new();
     let window_builder = glutin::window::WindowBuilder::new();
     let context_builder = glutin::ContextBuilder::new();
-    let display = glium::Display::new(window_builder, context_builder, &event_loop).unwrap();
+    let display: glium::Display = glium::Display::new(window_builder, context_builder, &event_loop).unwrap();
     
     event_loop.run(move |ev, _, control_flow| {
 
