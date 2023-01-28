@@ -1,7 +1,8 @@
-use sd::io::Result;
+use std::io::Result;
 use std::boxed::Box;
 use glium::backend::Facade;
 use glium::VertexBuffer;
+use glium::texture::SrgbTexture2d;
 
 use crate::resource::image::Image;
 use crate::rendering::renderable::RenderSettings;
@@ -86,8 +87,8 @@ pub struct EntityData {
 pub trait Renderer {
     fn resize_viewport(&self, width: usize, height: usize);
     fn clear(&self);
-    fn create_texture(&self, mipmaps: &Vec<&Image>) -> Result<Box<dyn Texture>>;
-    fn create_cube_texture(&self, sides: [Image; 6]) -> Result<Box<dyn Texture>>;
+    fn create_texture(&self, mipmaps: &Vec<&Image>) -> Result<SrgbTexture2d>;
+    fn create_cube_texture(&self, sides: [Image; 6]) -> Result<SrgbTexture2d>;
     //fn create_buffer(&self, data: &[T]) -> Box<dyn Buffer>;
     //fn create_input_layout(&self, buffer: &dyn Buffer, layout: &Vec<AttributeLayout>) -> dyn InputLayout;
     fn render_coords(&self, matrix: &glm::Mat4);

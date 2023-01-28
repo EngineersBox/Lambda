@@ -1,6 +1,8 @@
-use std::io::{Result, Error, ErrorKind}; 
+use std::io::{Result, Error, ErrorKind};
+
 use glium::texture::srgb_texture2d::SrgbTexture2d;
 use glium::texture::{RawImage2d, MipmapsOption};
+use glium::Rect;
 
 use crate::rendering::renderer::Renderer;
 
@@ -18,7 +20,7 @@ use crate::rendering::renderer::Renderer;
         todo!()
     }
 
-    fn create_texture(&self, mipmaps: &Vec<&crate::resource::image::Image>) -> Result<Box<dyn super::renderer::Texture>> {
+    fn create_texture(&self, mipmaps: &Vec<&crate::resource::image::Image>) -> Result<SrgbTexture2d> {
         if mipmaps.len() < 1 {
             return Err(Error::new(ErrorKind::InvalidInput, "At least one image must be provided to create a texture"));
         }
@@ -35,11 +37,28 @@ use crate::rendering::renderer::Renderer;
             Ok(tex) => tex,
             Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Unable to create level 0 mipmap: {}", error)))
         };
-        // TODO: Attach rest of mipmaps via: SrgbTexture2d$mipmap(u32)?$write(Rect,Texture2dDataSource)
-        todo!()
+        if mipmaps.len() == 1 {
+            return Ok(texture);
+        }
+        for i in 1..mipmaps.len() {
+            let image: &crate::resource::image::Image = mipmaps[i];
+            texture.mipmap(1).unwrap().write(
+                Rect {
+                    left: 0,
+                    bottom: 0,
+                    width: image.width as u32,
+                    height: image.height as u32
+                },
+                RawImage2d::from_raw_rgba_reversed(
+                    &image.data,
+                    (image.width as u32, image.height as u32)
+                )
+            );
+        }
+        return Ok(texture);
     }
 
-    fn create_cube_texture(&self, sides: [crate::resource::image::Image; 6]) -> Result<Box<dyn super::renderer::Texture>> {
+    fn create_cube_texture(&self, sides: [crate::resource::image::Image; 6]) -> Result<SrgbTexture2d> {
         todo!()
     }
 
