@@ -1,6 +1,6 @@
 use std::io::{Result, Error, ErrorKind};
 
-use glium::texture::{SrgbTexture2d, SrgbCubemap, CubeLayer, RawImage2d, MipmapsOption};
+use glium::texture::{SrgbTexture2d, SrgbCubemap, RawImage2d, MipmapsOption};
 use glium::Rect;
 
 use crate::rendering::renderer::Renderer;

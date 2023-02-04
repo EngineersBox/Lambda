@@ -2,6 +2,7 @@ use std::boxed::Box;
 use std::io::{Result, Error, ErrorKind};
 use bit_set::BitSet;
 use glium::vertex::VertexBuffer;
+use glium::texture::{SrgbCubemap, SrgbTexture2d};
 
 use crate::rendering::renderer::{Renderer,Texture,FaceRenderInfo,EntityData,Vertex,VertexWithLM};
 use crate::rendering::renderable::{Renderable,RenderSettings};
@@ -87,9 +88,9 @@ pub struct BSPRenderable {
     m_bsp: Box<BSP>,
     m_camera: Box<Camera>,
     m_settings: Box<RenderSettings>,
-    m_skybox_tex: Option<Box<dyn Texture>>,
-    m_textures: Vec<Box<dyn Texture>>,
-    m_lightmap_atlas: Box<dyn Texture>,
+    m_skybox_tex: Option<SrgbCubemap>,
+    m_textures: Vec<SrgbTexture2d>,
+    m_lightmap_atlas: SrgbTexture2d,
     m_static_geometry_vbo: VertexBuffer<VertexWithLM>,
     m_decal_vbo: VertexBuffer<Vertex>,
     vertex_offsets: Vec<usize>,
@@ -99,10 +100,13 @@ pub struct BSPRenderable {
 impl BSPRenderable {
 
     pub fn new(renderer: Box<dyn Renderer>, bsp: Box<BSP>, camera: Box<Camera>) -> Result<Self> {
-        let m_skybox_tex: Option<Box<dyn Texture>> = bsp.load_skybox()
-            .map(|images: [Image; 6]| renderer.create_cube_texture(images));
-        let m_textures: Vec<Box<dyn Texture>> = BSPRenderable::load_textures(&renderer, &bsp.m_textures);
-        let (lm_coords, m_lightmap_atlas): (Vec<Vec<glm::Vec2>>, Box<dyn Texture>) = BSPRenderable::load_lightmaps(
+        let m_skybox_tex: Option<SrgbCubemap> = bsp.load_skybox()
+            .map(|images: [Image; 6]| renderer.create_cube_texture(images).unwrap()); //FIXME:
+                                                                                      //Handle this
+                                                                                      //result
+                                                                                      //properly
+        let m_textures: Vec<SrgbTexture2d> = BSPRenderable::load_textures(&renderer, &bsp.m_textures);
+        let (lm_coords, m_lightmap_atlas): (Vec<Vec<glm::Vec2>>, SrgbTexture2d) = BSPRenderable::load_lightmaps(
             &bsp.m_lightmaps,
             bsp.faces.len(),
             &bsp.face_tex_coords,
@@ -135,13 +139,13 @@ impl BSPRenderable {
         });
     }
 
-    fn load_textures(renderer: &Box<dyn Renderer>, bsp_m_textures: &Vec<MipmapTexture>) -> Vec<Box<dyn Texture>> {
-        let mut m_textures: Vec<Box<dyn Texture>> = Vec::with_capacity(bsp_m_textures.len());
+    fn load_textures(renderer: &Box<dyn Renderer>, bsp_m_textures: &Vec<MipmapTexture>) -> Vec<SrgbTexture2d> {
+        let mut m_textures: Vec<SrgbTexture2d> = Vec::with_capacity(bsp_m_textures.len());
         for mip_tex in bsp_m_textures {
             m_textures.push(renderer.create_texture(&vec![
                 &mip_tex.img[0],
                 &mip_tex.img[4],
-            ]));
+            ]).unwrap()); // FIXME: Handle this result type properly
         }
         return m_textures;
     }
@@ -149,7 +153,7 @@ impl BSPRenderable {
     fn load_lightmaps(bsp_m_lightmaps: &Vec<Image>,
                       bsp_faces_len: usize,
                       bsp_face_tex_coords: &Vec<FaceTexCoords>,
-                      renderer: &Box<dyn Renderer>) -> Result<(Vec<Vec<glm::Vec2>>, Box<dyn Texture>)> {
+                      renderer: &Box<dyn Renderer>) -> Result<(Vec<Vec<glm::Vec2>>, SrgbTexture2d)> {
         let mut atlas: TextureAtlas = TextureAtlas::new(1024, 1024, 3);
         let mut lm_positions: Vec<glm::UVec2> = Vec::with_capacity(bsp_m_lightmaps.len());
         for lm in bsp_m_lightmaps.iter() {
@@ -171,7 +175,7 @@ impl BSPRenderable {
                 )).collect();
             lm_coords.push(sub_coords);
         }
-        let m_lightmap_atlas: Box<dyn Texture> = renderer.create_texture(&vec![&atlas.m_image]);
+        let m_lightmap_atlas: SrgbTexture2d = renderer.create_texture(&vec![&atlas.m_image])?;
         return Ok((lm_coords, m_lightmap_atlas));
     }
 
