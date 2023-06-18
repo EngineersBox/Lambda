@@ -195,7 +195,7 @@ impl BSPRenderable {
                 .map(|_| false)
                 .collect::<Vec<bool>>();
         }
-        let entities: Vec<EntityData> = Vec::new();
+        let mut entities: Vec<EntityData> = Vec::new();
         if render_static_bsp {
             entities.push(EntityData {
                 face_render_info: self.render_static_geometry(
@@ -209,8 +209,8 @@ impl BSPRenderable {
             });
         }
         if render_brush_entities {
-            for i in self.m_bsp.brush_entities {
-                let entity: &Entity = &self.m_bsp.entities[i];
+            for i in 0..self.m_bsp.brush_entities.len() {
+                let entity: &Entity = &self.m_bsp.entities[self.m_bsp.brush_entities[i]];
                 let model: isize = entity.find_property(&"model".to_string())
                     .unwrap()[1..]
                     .parse::<isize>()
@@ -225,13 +225,13 @@ impl BSPRenderable {
                 } else {
                     bsp30::RenderMode::RenderModeNormal
                 };
-                let face_render_infos: Vec<FaceRenderInfo> = Vec::new();
+                let mut face_render_infos: Vec<FaceRenderInfo> = Vec::new();
                 self.render_bsp(
                     self.m_bsp.models[model as usize].model.head_nodes_index[0] as isize,
                     &BitSet::<u8>::default(),
                     camera_pos.clone(),
                     use_textures,
-                    &face_render_infos,
+                    &mut face_render_infos,
                 );
                 entities.push(EntityData {
                     face_render_info: face_render_infos,
@@ -261,7 +261,7 @@ impl BSPRenderable {
             (-self.m_settings.yaw).to_radians(),
             90.0f32.to_radians(),
         );
-        self.m_renderer.render_skybox(&self.m_skybox_tex.unwrap(), &matrix);
+        self.m_renderer.render_skybox(&self.m_skybox_tex.as_ref().unwrap(), &matrix);
     }
 
     fn euler_angle_xzx(t1: f32, t2: f32, t3: f32) -> glm::Mat4 {
@@ -291,10 +291,10 @@ impl BSPRenderable {
         );
     }
 
-    fn render_static_geometry(&self, pos: glm::Vec3,
+    fn render_static_geometry(&mut self, pos: glm::Vec3,
                               leaf: Option<i16>,
                               bsp_vis_lists: &Vec<BitSet<u8>>) -> Vec<FaceRenderInfo> {
-        let face_render_infos: Vec<FaceRenderInfo> = Vec::new();
+        let mut face_render_infos: Vec<FaceRenderInfo> = Vec::new();
         let vis_list: &BitSet<u8> = if leaf.is_none() || bsp_vis_lists.is_empty() {
             &BitSet::<u8>::default()
         } else {
@@ -305,14 +305,14 @@ impl BSPRenderable {
             vis_list,
             pos,
             true, // TODO: Make this into a method parameter
-            &face_render_infos,
+            &mut face_render_infos,
         );
         return face_render_infos;
     }
 
     fn render_leaf(&mut self, leaf_index: isize,
                    use_textures: bool,
-                   face_render_infos: &Vec<FaceRenderInfo>,
+                   face_render_infos: &mut Vec<FaceRenderInfo>,
                    bsp_leaves: &Vec<bsp30::Leaf>,
                    bsp_mark_surfaces: &Vec<bsp30::MarkSurface>,
                    bsp_faces: &Vec<bsp30::Face>,
@@ -346,7 +346,7 @@ impl BSPRenderable {
                   vis_list: &BitSet<u8>,
                   pos: glm::Vec3,
                   use_textures: bool,
-                  face_render_infos: &Vec<FaceRenderInfo>) {
+                  face_render_infos: &mut Vec<FaceRenderInfo>) {
         if node == -1 {
             return;
         }

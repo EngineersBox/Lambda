@@ -59,7 +59,7 @@ impl Default for VertexWithLM {
 implement_vertex!(VertexWithLM, position, normal, tex_coord, lightmap_coord);
 
 pub struct FaceRenderInfo {
-    pub tex: Option<Box<dyn Texture>>,
+    pub tex: Option<SrgbTexture2d>,
     pub offset: usize,
     pub count: usize,
 }
@@ -92,13 +92,13 @@ pub trait Renderer {
     //fn create_buffer(&self, data: &[T]) -> Box<dyn Buffer>;
     //fn create_input_layout(&self, buffer: &dyn Buffer, layout: &Vec<AttributeLayout>) -> dyn InputLayout;
     fn render_coords(&self, matrix: &glm::Mat4);
-    fn render_skybox(&self, cubemap: &Box<dyn Texture>, matrix: &glm::Mat4);
+    fn render_skybox(&self, cubemap: &SrgbCubemap, matrix: &glm::Mat4);
     fn render_static(&self, entities: &Vec<EntityData>,
                      decals: &Vec<Decal>,
                      static_layout: &VertexBuffer<VertexWithLM>,
                      decal_layout: &VertexBuffer<Vertex>,
-                     textures: &Vec<Box<dyn Texture>>,
-                     lightmaps_atlas: &Box<dyn Texture>,
+                     textures: &Vec<SrgbTexture2d>,
+                     lightmaps_atlas: &SrgbTexture2d,
                      settings: &RenderSettings);
     fn render_imgui(&self, data: &imgui::DrawData);
     fn provide_facade(&self) -> &dyn Facade;

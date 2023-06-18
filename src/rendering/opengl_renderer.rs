@@ -100,7 +100,7 @@ use crate::rendering::renderer::Renderer;
         todo!()
     }
 
-    fn render_skybox(&self, cubemap: &Box<dyn super::renderer::Texture>, matrix: &glm::Mat4) {
+    fn render_skybox(&self, cubemap: &SrgbCubemap, matrix: &glm::Mat4) {
         todo!()
     }
 
@@ -108,8 +108,8 @@ use crate::rendering::renderer::Renderer;
                      decals: &Vec<crate::map::bsp::Decal>,
                      static_layout: &glium::VertexBuffer<super::renderer::VertexWithLM>,
                      decal_layout: &glium::VertexBuffer<super::renderer::Vertex>,
-                     textures: &Vec<Box<dyn super::renderer::Texture>>,
-                     lightmaps_atlas: &Box<dyn super::renderer::Texture>,
+                     textures: &Vec<SrgbTexture2d>,
+                     lightmaps_atlas: &SrgbTexture2d,
                      settings: &super::renderable::RenderSettings) {
         todo!()
     }

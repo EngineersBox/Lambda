@@ -207,7 +207,10 @@ impl BSP {
         for _ in 0..entity_buffer.capacity() {
             entity_buffer.push(reader.read_u8()?);
         }
-        bsp.entities = BSP::parse_entities(&String::from_utf8(entity_buffer)?);
+        bsp.entities = BSP::parse_entities(&match String::from_utf8(entity_buffer) {
+            Ok(val) => val,
+            Err(error) => return Err(Error::new(ErrorKind::InvalidData, format!("Cannot parse entity buffer: {}", error))),
+        });
         debug!(&crate::LOGGER, "Parsed entities");
         // Textures
         bsp.texture_infos = Vec::with_capacity(bsp.header.lump[bsp30::LumpType::LumpTexinfo as usize].length as usize / std::mem::size_of::<bsp30::TextureInfo>());
