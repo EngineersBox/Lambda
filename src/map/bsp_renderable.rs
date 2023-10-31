@@ -382,9 +382,7 @@ impl BSPRenderable {
                 && bsp_header.lump[bsp30::LumpType::LumpLighting as usize].length > 0;
             let face_render_info: FaceRenderInfo = FaceRenderInfo {
                 tex: if use_textures {
-                    Some(
-                        bsp_texture_infos[face.texture_info as usize].mip_tex_index as usize,
-                    )
+                    Some(bsp_texture_infos[face.texture_info as usize].mip_tex_index as usize)
                 } else {
                     None
                 },
@@ -417,6 +415,9 @@ impl BSPRenderable {
             let faces = std::mem::take(&mut self.m_bsp.faces);
             let header = std::mem::take(&mut self.m_bsp.header);
             let texture_infos = std::mem::take(&mut self.m_bsp.texture_infos);
+            // NOTE: If we are always calling render_leaf with self.m_bsp fields
+            //       then remove those parameters and reference them directly from
+            //       within the call via mutable self reference
             self.render_leaf(
                 leaf,
                 use_textures,
