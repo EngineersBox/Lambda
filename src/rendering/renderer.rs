@@ -1,13 +1,13 @@
-use std::io::Result;
-use std::boxed::Box;
 use glium::backend::Facade;
+use glium::texture::{SrgbCubemap, SrgbTexture2d};
 use glium::VertexBuffer;
-use glium::texture::{SrgbTexture2d, SrgbCubemap};
+use std::boxed::Box;
+use std::io::Result;
 
-use crate::resource::image::Image;
-use crate::rendering::renderable::RenderSettings;
-use crate::map::bsp30;
 use crate::map::bsp::Decal;
+use crate::map::bsp30;
+use crate::rendering::renderable::RenderSettings;
+use crate::resource::image::Image;
 
 pub trait Texture {}
 pub trait Buffer {}
@@ -21,16 +21,13 @@ pub struct Vertex {
 }
 
 impl Default for Vertex {
-
     fn default() -> Self {
-
         return Self {
             position: [0.0, 0.0, 0.0],
             normal: [0.0, 0.0, 0.0],
             tex_coord: [0.0, 0.0],
         };
     }
-
 }
 
 implement_vertex!(Vertex, position, normal, tex_coord);
@@ -44,7 +41,6 @@ pub struct VertexWithLM {
 }
 
 impl Default for VertexWithLM {
-    
     fn default() -> Self {
         return Self {
             position: [0.0, 0.0, 0.0],
@@ -53,13 +49,12 @@ impl Default for VertexWithLM {
             lightmap_coord: [0.0, 0.0],
         };
     }
-
 }
 
 implement_vertex!(VertexWithLM, position, normal, tex_coord, lightmap_coord);
 
 pub struct FaceRenderInfo {
-    pub tex: Option<SrgbTexture2d>,
+    pub tex: Option<usize>, // Index into self.m_textures
     pub offset: usize,
     pub count: usize,
 }
@@ -93,21 +88,29 @@ pub trait Renderer {
     //fn create_input_layout(&self, buffer: &dyn Buffer, layout: &Vec<AttributeLayout>) -> dyn InputLayout;
     fn render_coords(&self, matrix: &glm::Mat4);
     fn render_skybox(&self, cubemap: &SrgbCubemap, matrix: &glm::Mat4);
-    fn render_static(&self, entities: &Vec<EntityData>,
-                     decals: &Vec<Decal>,
-                     static_layout: &VertexBuffer<VertexWithLM>,
-                     decal_layout: &VertexBuffer<Vertex>,
-                     textures: &Vec<SrgbTexture2d>,
-                     lightmaps_atlas: &SrgbTexture2d,
-                     settings: &RenderSettings);
+    fn render_static(
+        &self,
+        entities: &Vec<EntityData>,
+        decals: &Vec<Decal>,
+        static_layout: &VertexBuffer<VertexWithLM>,
+        decal_layout: &VertexBuffer<Vertex>,
+        textures: &Vec<SrgbTexture2d>,
+        lightmaps_atlas: &SrgbTexture2d,
+        settings: &RenderSettings,
+    );
     fn render_imgui(&self, data: &imgui::DrawData);
     fn provide_facade(&self) -> &dyn Facade;
     fn screenshot(&self) -> Image;
 }
 
 pub trait Platform {
-    fn create_window_and_context(&self, width: usize, height: usize, title: String, monitor: usize) -> glium::Display;
+    fn create_window_and_context(
+        &self,
+        width: usize,
+        height: usize,
+        title: String,
+        monitor: usize,
+    ) -> glium::Display;
     fn create_renderer() -> Box<dyn Renderer>;
     fn swap_buffers(&self);
 }
-

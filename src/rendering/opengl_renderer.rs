@@ -5,11 +5,11 @@ use glium::Rect;
 
 use crate::rendering::renderer::Renderer;
 
- struct OpenGLRenderer {
+struct OpenGLRenderer {
     display: glium::Display,
- }
+}
 
- impl Renderer for OpenGLRenderer {
+impl Renderer for OpenGLRenderer {
 
     fn resize_viewport(&self, width: usize, height: usize) {
         todo!()

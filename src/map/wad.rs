@@ -1,11 +1,11 @@
-use std::io::{self, Read, Seek, SeekFrom, BufReader};
-use std::fs::{File, OpenOptions};
+use byteorder::{LittleEndian, ReadBytesExt};
 use std::collections::HashMap;
-use byteorder::{ReadBytesExt, LittleEndian};
+use std::fs::{File, OpenOptions};
+use std::io::{self, BufReader, Read, Seek, SeekFrom};
 
 use crate::map::bsp30;
-use crate::resource::resource::{Resource,read_char_array};
 use crate::resource::image::Image;
+use crate::resource::resource::{read_char_array, Resource};
 
 #[derive(Debug)]
 pub struct WadHeader {
@@ -15,11 +15,9 @@ pub struct WadHeader {
 }
 
 impl Resource for WadHeader {
-
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> {
-        
         let magic: [u8; 4] = [
             reader.read_u8()?,
             reader.read_u8()?,
@@ -34,10 +32,9 @@ impl Resource for WadHeader {
             dir_offset,
         });
     }
-
 }
 
-#[derive(Debug,Default)]
+#[derive(Debug, Default)]
 pub struct WadDirEntry {
     pub n_file_pos: i32,
     pub n_disk_size: i32,
@@ -49,7 +46,6 @@ pub struct WadDirEntry {
 }
 
 impl Resource for WadDirEntry {
-
     type T = LittleEndian;
 
     fn from_reader(reader: &mut BufReader<impl ReadBytesExt>) -> io::Result<Self> {
@@ -71,7 +67,6 @@ impl Resource for WadDirEntry {
             name,
         });
     }
-
 }
 
 pub struct MipmapTexture {
@@ -79,37 +74,28 @@ pub struct MipmapTexture {
 }
 
 impl MipmapTexture {
-
     pub fn new() -> MipmapTexture {
         return MipmapTexture {
             img: [(); bsp30::MIP_LEVELS].map(|_| Image::new()),
         };
     }
-
 }
 
 pub struct Wad {
-    pub (crate) wad_file: BufReader<File>,
-    pub (crate) dir_entries: HashMap<String, WadDirEntry>,
+    pub(crate) wad_file: BufReader<File>,
+    pub(crate) dir_entries: HashMap<String, WadDirEntry>,
 }
 
 impl Wad {
-    
     pub fn new(path: &String) -> Wad {
-        let wad_file: File = match OpenOptions::new()
-            .read(true)
-            .open(&path) {
+        let wad_file: File = match OpenOptions::new().read(true).open(&path) {
             Ok(file) => {
                 if file.metadata().unwrap().is_dir() {
                     panic!("Cannot read WAD from path pointing to directory: {}", path);
                 }
                 file
-            },
-            Err(error) => panic!(
-                "Unable to read WAD file at {}: {}",
-                path,
-                error,
-            ),
+            }
+            Err(error) => panic!("Unable to read WAD file at {}: {}", path, error,),
         };
         let mut wad: Wad = Wad {
             wad_file: BufReader::new(wad_file),
@@ -141,15 +127,19 @@ impl Wad {
             Err(error) => panic!("Unable to read WAD header: {}", error),
         };
         match header.magic {
-            [b'W', b'A', b'D', b'2' | b'3'] => {},
-            other => panic!("Invalid WAD magic string: {:?}", other)
+            [b'W', b'A', b'D', b'2' | b'3'] => {}
+            other => panic!("Invalid WAD magic string: {:?}", other),
         };
         // self.dir_entries.resize_with(header.n_dir as usize, Default::default);
-        self.wad_file.seek(SeekFrom::Start(header.dir_offset as u64)).unwrap();
+        self.wad_file
+            .seek(SeekFrom::Start(header.dir_offset as u64))
+            .unwrap();
         for i in 0..header.n_dir as usize {
             match WadDirEntry::from_reader(&mut self.wad_file) {
                 Ok(entry) => self.dir_entries.insert(
-                    String::from_utf8_lossy(&entry.name).trim_matches(char::from(0)).to_string(),
+                    String::from_utf8_lossy(&entry.name)
+                        .trim_matches(char::from(0))
+                        .to_string(),
                     entry,
                 ),
                 Err(error) => panic!("Unable to parse WadDirEntry {}: {}", i, error),
@@ -163,24 +153,31 @@ impl Wad {
             if entry.compressed {
                 panic!("Cannot load compressed WAD texture {}", name);
             }
-            self.wad_file.seek(SeekFrom::Start(entry.n_file_pos as u64)).unwrap();
+            self.wad_file
+                .seek(SeekFrom::Start(entry.n_file_pos as u64))
+                .unwrap();
             let mut texture_bytes: Vec<u8> = Vec::with_capacity(entry.n_size as usize);
             for _ in 0..entry.n_size as usize {
                 texture_bytes.push(self.wad_file.read_u8().unwrap());
             }
             return texture_bytes;
         } else {
-            error!(&crate::LOGGER, "No such texture found with name: {}", name.to_uppercase());
+            error!(
+                &crate::LOGGER,
+                "No such texture found with name: {}",
+                name.to_uppercase()
+            );
             return Vec::with_capacity(0);
         }
     }
-    
+
     pub fn create_mip_texture(raw_texture: &Vec<u8>) -> MipmapTexture {
         let mut reader: BufReader<&[u8]> = BufReader::new(raw_texture.as_slice());
         let raw_mip_tex: bsp30::MipTex = bsp30::MipTex::from_reader(&mut reader).unwrap();
         let mut width: u32 = raw_mip_tex.width;
         let mut height: u32 = raw_mip_tex.height;
-        let palette_offset: usize = raw_mip_tex.offsets[3] as usize + (width / 8) as usize * (height / 8) as usize + 2;
+        let palette_offset: usize =
+            raw_mip_tex.offsets[3] as usize + (width / 8) as usize * (height / 8) as usize + 2;
         let mut mip_tex: MipmapTexture = MipmapTexture::new();
         for level in 0..bsp30::MIP_LEVELS {
             let pixel_index: usize = raw_mip_tex.offsets[level] as usize;
@@ -201,14 +198,15 @@ impl Wad {
             height /= 2;
         }
         return mip_tex;
-    } 
+    }
 
     fn create_decal_texture(&self, raw_texture: &Vec<u8>) -> MipmapTexture {
         let mut reader: BufReader<&[u8]> = BufReader::new(raw_texture.as_slice());
         let raw_mip_tex: bsp30::MipTex = bsp30::MipTex::from_reader(&mut reader).unwrap();
         let mut width: u32 = raw_mip_tex.width;
         let mut height: u32 = raw_mip_tex.height;
-        let palette_offset: usize = raw_mip_tex.offsets[3] as usize + (width / 8) as usize * (height / 8) as usize + 2;
+        let palette_offset: usize =
+            raw_mip_tex.offsets[3] as usize + (width / 8) as usize * (height / 8) as usize + 2;
         let mut mip_tex: MipmapTexture = MipmapTexture::new();
         let colour: usize = palette_offset + 255 * 3;
         for level in 0..bsp30::MIP_LEVELS {
@@ -219,7 +217,7 @@ impl Wad {
             img.height = height as usize;
             img.data.resize(width as usize * height as usize * 4, 0);
             for i in 0..(height * width) as usize {
-                let palette_index: usize = raw_texture[pixel_index + i] as usize * 3; 
+                let palette_index: usize = raw_texture[pixel_index + i] as usize * 3;
                 img.data[i * 4 + 0] = raw_texture[colour + 0];
                 img.data[i * 4 + 1] = raw_texture[colour + 1];
                 img.data[i * 4 + 2] = raw_texture[colour + 2];
@@ -231,7 +229,6 @@ impl Wad {
         }
         return mip_tex;
     }
-
 }
 
 fn apply_alpha_sections(p_tex: &mut Image) {
@@ -260,13 +257,17 @@ fn apply_alpha_sections(p_tex: &mut Image) {
                     let pixel_index: usize = $pixel_index_expr;
                     if !(p_tex.data[pixel_index] == 0
                         && p_tex.data[pixel_index + 1] == 0
-                        && p_tex.data[pixel_index + 2] == 255) {
-                        rgb_colour_sum.0 += (p_tex.data[pixel_index + 0] as f32 * std::f32::consts::SQRT_2) as usize;
-                        rgb_colour_sum.1 += (p_tex.data[pixel_index + 1] as f32 * std::f32::consts::SQRT_2) as usize;
-                        rgb_colour_sum.2 += (p_tex.data[pixel_index + 2] as f32 * std::f32::consts::SQRT_2) as usize;
+                        && p_tex.data[pixel_index + 2] == 255)
+                    {
+                        rgb_colour_sum.0 += (p_tex.data[pixel_index + 0] as f32
+                            * std::f32::consts::SQRT_2) as usize;
+                        rgb_colour_sum.1 += (p_tex.data[pixel_index + 1] as f32
+                            * std::f32::consts::SQRT_2) as usize;
+                        rgb_colour_sum.2 += (p_tex.data[pixel_index + 2] as f32
+                            * std::f32::consts::SQRT_2) as usize;
                         count += 1;
                     }
-                }
+                };
             }
 
             macro_rules! absolute_pixel {
@@ -274,13 +275,14 @@ fn apply_alpha_sections(p_tex: &mut Image) {
                     let pixel_index: usize = $pixel_index_expr;
                     if !(p_tex.data[pixel_index] == 0
                         && p_tex.data[pixel_index + 1] == 0
-                        && p_tex.data[pixel_index + 2] == 255) {
+                        && p_tex.data[pixel_index + 2] == 255)
+                    {
                         rgb_colour_sum.0 += p_tex.data[pixel_index] as usize;
                         rgb_colour_sum.1 += p_tex.data[pixel_index + 1] as usize;
                         rgb_colour_sum.2 += p_tex.data[pixel_index + 2] as usize;
                         count += 1;
                     }
-                }
+                };
             }
 
             // Top left
@@ -325,14 +327,15 @@ fn apply_alpha_sections(p_tex: &mut Image) {
                 p_rgb_texture[index * 4 + 2] = rgb_colour_sum.2 as u8;
             }
         }
-    } 
+    }
     for y in 0..p_tex.height {
         for x in 0..p_tex.width {
             let index: usize = y * p_tex.width + x;
             if p_rgb_texture[index * 4] != 0
                 || p_rgb_texture[index * 4 + 1] != 0
                 || p_rgb_texture[index * 4 + 2] != 255
-                || p_rgb_texture[index * 4 + 3] != 0 {
+                || p_rgb_texture[index * 4 + 3] != 0
+            {
                 p_tex.data[index * 4 + 0] = p_rgb_texture[index * 4 + 0];
                 p_tex.data[index * 4 + 1] = p_rgb_texture[index * 4 + 1];
                 p_tex.data[index * 4 + 2] = p_rgb_texture[index * 4 + 2];
