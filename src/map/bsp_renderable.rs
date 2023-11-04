@@ -410,6 +410,8 @@ impl BSPRenderable {
             if vis_list.is_empty() && !vis_list.get_ref()[leaf as usize - 1] {
                 return;
             }
+            // TODO: Create a macro that takes a sequence of fields to take and
+            //       restore after the block/code given has completed.
             let leaves = std::mem::take(&mut self.m_bsp.leaves);
             let mark_surfaces = std::mem::take(&mut self.m_bsp.mark_surfaces);
             let faces = std::mem::take(&mut self.m_bsp.faces);
