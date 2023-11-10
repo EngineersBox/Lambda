@@ -9,7 +9,7 @@ use crate::map::bsp30;
 use crate::map::wad::MipmapTexture;
 use crate::rendering::renderable::{RenderSettings, Renderable};
 use crate::rendering::renderer::{
-    EntityData, FaceRenderInfo, Renderer, Texture, Vertex, VertexWithLM,
+    EntityData, FaceRenderInfo, Renderer, Vertex, VertexWithLM,
 };
 use crate::rendering::view::camera::Camera;
 use crate::resource::image::Image;
@@ -305,6 +305,7 @@ impl BSPRenderable {
             .render_skybox(&self.m_skybox_tex.as_ref().unwrap(), &matrix);
     }
 
+    #[inline(always)]
     fn euler_angle_xzx(t1: f32, t2: f32, t3: f32) -> glm::Mat4 {
         let c1: f32 = t1.cos();
         let s1: f32 = t1.sin();
