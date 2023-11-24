@@ -3,14 +3,13 @@ use glium::texture::{SrgbCubemap, SrgbTexture2d};
 use glium::vertex::VertexBuffer;
 use std::boxed::Box;
 use std::io::{Error, ErrorKind, Result};
+use num::FromPrimitive;
 
 use crate::map::bsp::{Decal, FaceTexCoords, BSP};
 use crate::map::bsp30;
 use crate::map::wad::MipmapTexture;
 use crate::rendering::renderable::{RenderSettings, Renderable};
-use crate::rendering::renderer::{
-    EntityData, FaceRenderInfo, Renderer, Vertex, VertexWithLM,
-};
+use crate::rendering::renderer::{EntityData, FaceRenderInfo, Renderer, Vertex, VertexWithLM};
 use crate::rendering::view::camera::Camera;
 use crate::resource::image::Image;
 use crate::scene::entity::Entity;
@@ -103,7 +102,7 @@ pub struct BSPRenderable {
     m_renderer: Box<dyn Renderer>,
     m_bsp: Box<BSP>,
     m_camera: Box<Camera>,
-    m_settings: Box<RenderSettings>,
+    m_settings: RenderSettings,
     m_skybox_tex: Option<SrgbCubemap>,
     m_textures: Vec<SrgbTexture2d>,
     m_lightmap_atlas: SrgbTexture2d,
@@ -216,7 +215,7 @@ impl BSPRenderable {
         render_leaf_outlines: bool,
         use_textures: bool,
     ) {
-        self.m_settings = Box::new(*render_settings);
+        self.m_settings = render_settings.clone();
         if self.m_skybox_tex.is_some() && render_skybox {
             self.render_skybox();
         }
@@ -556,7 +555,59 @@ impl BSPRenderable {
 }
 
 impl Renderable for BSPRenderable {
-    fn render(settings: &RenderSettings) {
-        todo!()
+    fn render(&mut self, settings: &RenderSettings) -> Option<Error> {
+        const G_RENDER_SKYBOX: bool = true;
+        const G_RENDER_STATIC_BSP: bool = true;
+        const G_RENDER_BRUSH_ENTITIES: bool = true;
+        self.m_settings = settings.clone();
+        let camera_pos: glm::Vec3;
+        if self.m_skybox_tex.is_some() && G_RENDER_SKYBOX {
+            self.render_skybox();
+        }
+        if G_RENDER_STATIC_BSP || G_RENDER_BRUSH_ENTITIES {
+            self.faces_drawn.iter_mut()
+                .for_each(|f: &mut bool| *f = false);
+        }
+        let mut ents: Vec<EntityData> = Vec::new();
+        if G_RENDER_STATIC_BSP {
+            ents.push(EntityData {
+                face_render_info: self.render_static_geometry(camera_pos, Option::None, &mut self.m_bsp.vis_lists),
+                origin: glm::Vec3::new(0.0, 0.0, 0.0),
+                alpha: 1.0,
+                render_mode: bsp30::RenderMode::RenderModeNormal,
+            });
+        }
+        if G_RENDER_BRUSH_ENTITIES {
+            for i in self.m_bsp.brush_entities {
+                let entity: &Entity = &self.m_bsp.entities[i];
+                let model_index: u32;
+                if let Some(model_prop) = entity.find_property(&"model".to_string()) {
+                    model_index = model_prop[1..].parse::<u32>().unwrap();
+                } else {
+                    return Some(Error::new(ErrorKind::InvalidData, "expected model property to exist on entity"));
+                }
+                let mut alpha: f32 = 1.0;
+                if let Some(renderamt) = entity.find_property(&"renderamt".to_string()) {
+                    alpha = renderamt.parse::<f32>().unwrap() / 255.0;
+                }
+                let mut render_mode: bsp30::RenderMode = bsp30::RenderMode::RenderModeNormal;
+                if let Some(render_mode_prop) = entity.find_property(&"rendermode".to_string()) {
+                    render_mode = bsp30::RenderMode::from_u32(render_mode_prop.parse::<u32>().unwrap()).unwrap();
+                }
+                // std::vector<render::FaceRenderInfo> fri;
+			    //renderBSP(m_bsp->models[model].headNodesIndex[0], boost::dynamic_bitset<uint8_t>{}, cameraPos, fri); // for some odd reason, VIS does not work for entities ...
+			    //ents.push_back(render::EntityData{ std::move(fri), m_bsp->models[model].origin, alpha, renderMode });
+            }
+        }
+        self.m_renderer.render_static(
+            &ents,
+            &self.m_bsp.m_decals,
+            &self.m_static_geometry_vbo,
+            &self.m_decal_vbo,
+            &self.m_textures,
+            &self.m_lightmap_atlas,
+            &self.m_settings
+        );
+        return None;
     }
 }

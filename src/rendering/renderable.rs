@@ -8,6 +8,6 @@ pub struct RenderSettings {
 
 pub trait Renderable {
 
-    fn render(settings: &RenderSettings);
+    fn render(&mut self, settings: &RenderSettings);
 
 }
